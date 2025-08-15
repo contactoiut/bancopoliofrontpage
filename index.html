@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏦</text></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bancopolio</title>
+    <!-- Tailwind CSS CDN for bundler-less styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "peerjs": "https://esm.sh/peerjs@1.5.5",
+    "html5-qrcode": "https://esm.sh/html5-qrcode@2.3.8",
+    "express": "https://esm.sh/express@^5.1.0",
+    "http": "https://esm.sh/http@^0.0.1-security",
+    "cors": "https://esm.sh/cors@^2.8.5",
+    "peer": "https://esm.sh/peer@^1.0.2"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react';
+      import * as ReactDOM from 'react-dom/client';
+      import Peer from 'peerjs';
+      import { Html5QrcodeScanner } from 'html5-qrcode';
+      
+      // --- CONSTANTS ---
+      const PEER_SERVER_HOST = 'mirepositoriodesenaleswebrtc.onrender.com';
+      const PEER_SERVER_PORT = 443;
+      const MAX_PLAYERS = 6;
+      const INITIAL_MONEY = 1500;
+      const LOCAL_STORAGE_KEY = 'bancopolio_session_v2';
+      const PLAYER_COLORS = ['#007BFF', '#DC3545', '#111827', '#FFC107', '#F8F9FA', '#28A745']; // Azul, Rojo, Negro, Amarillo, Blanco, Verde
+      
+      const ConnectionStatus = {
+        INITIALIZING: 'INITIALIZING',
+        CONNECTING: 'CONNECTING',
+        CONNECTED: 'CONNECTED',
+        DISCONNECTED: 'DISCONNECTED',
+        ERROR: 'ERROR',
+        IN_LOBBY: 'IN_LOBBY', // Player is in a lobby
+        IN_GAME: 'IN_GAME',     // Game has started
+      };
+
+      const propertiesData = [
+          { id: 'brown1', name: 'Av. Mediterráneo', group: 'brown', price: 60, rent: [2, 10, 30, 90, 160, 250], houseCost: 50, mortgageValue: 30 },
+          { id: 'brown2', name: 'Av. Báltica', group: 'brown', price: 60, rent: [4, 20, 60, 180, 320, 450], houseCost: 50, mortgageValue: 30 },
+          { id: 'lightblue1', name: 'Av. Oriental', group: 'lightblue', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, mortgageValue: 50 },
+          { id: 'lightblue2', name: 'Av. Vermont', group: 'lightblue', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, mortgageValue: 50 },
+          { id: 'lightblue3', name: 'Av. Connecticut', group: 'lightblue', price: 120, rent: [8, 40, 100, 300, 450, 600], houseCost: 50, mortgageValue: 60 },
+          { id: 'pink1', name: 'Plaza San Carlos', group: 'pink', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, mortgageValue: 70 },
+          { id: 'pink2', name: 'Av. Status', group: 'pink', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, mortgageValue: 70 },
+          { id: 'pink3', name: 'Av. Virginia', group: 'pink', price: 160, rent: [12, 60, 180, 500, 700, 900], houseCost: 100, mortgageValue: 80 },
+          { id: 'orange1', name: 'Plaza St. James', group: 'orange', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, mortgageValue: 90 },
+          { id: 'orange2', name: 'Av. Tennessee', group: 'orange', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, mortgageValue: 90 },
+          { id: 'orange3', name: 'Av. Nueva York', group: 'orange', price: 200, rent: [16, 80, 220, 600, 800, 1000], houseCost: 100, mortgageValue: 100 },
+          { id: 'red1', name: 'Av. Kentucky', group: 'red', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, mortgageValue: 110 },
+          { id: 'red2', name: 'Av. Indiana', group: 'red', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, mortgageValue: 110 },
+          { id: 'red3', name: 'Av. Illinois', group: 'red', price: 240, rent: [20, 100, 300, 750, 925, 1100], houseCost: 150, mortgageValue: 120 },
+          { id: 'yellow1', name: 'Av. Atlántico', group: 'yellow', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, mortgageValue: 130 },
+          { id: 'yellow2', name: 'Av. Ventnor', group: 'yellow', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, mortgageValue: 130 },
+          { id: 'yellow3', name: 'Jardines Marvin', group: 'yellow', price: 280, rent: [24, 120, 360, 850, 1025, 1200], houseCost: 150, mortgageValue: 140 },
+          { id: 'green1', name: 'Av. Pacífico', group: 'green', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, mortgageValue: 150 },
+          { id: 'green2', name: 'Av. Carolina del Norte', group: 'green', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, mortgageValue: 150 },
+          { id: 'green3', name: 'Av. Pennsylvania', group: 'green', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], houseCost: 200, mortgageValue: 160 },
+          { id: 'blue1', name: 'Plaza Park', group: 'blue', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], houseCost: 200, mortgageValue: 175 },
+          { id: 'blue2', name: 'El Muelle', group: 'blue', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200, mortgageValue: 200 },
+          { id: 'railroad1', name: 'Ferrocarril Reading', group: 'railroad', price: 200, rent: [25, 50, 100, 200], houseCost: 0, mortgageValue: 100 },
+          { id: 'railroad2', name: 'Ferrocarril Pennsylvania', group: 'railroad', price: 200, rent: [25, 50, 100, 200], houseCost: 0, mortgageValue: 100 },
+          { id: 'railroad3', name: 'Ferrocarril B. & O.', group: 'railroad', price: 200, rent: [25, 50, 100, 200], houseCost: 0, mortgageValue: 100 },
+          { id: 'railroad4', name: 'Ferrocarril Vía Rápida', group: 'railroad', price: 200, rent: [25, 50, 100, 200], houseCost: 0, mortgageValue: 100 },
+          { id: 'utility1', name: 'Compañía Eléctrica', group: 'utility', price: 150, rent: [4, 10], houseCost: 0, mortgageValue: 75 },
+          { id: 'utility2', name: 'Compañía de Agua', group: 'utility', price: 150, rent: [4, 10], houseCost: 0, mortgageValue: 75 },
+      ];
+
+      const propertyGroupColors = {
+          brown: '#955436', lightblue: '#aae0fa', pink: '#d93a96', orange: '#f7941d',
+          red: '#ed1b24', yellow: '#fef200', green: '#1fb25a', blue: '#0072bb',
+          railroad: '#808285', utility: '#F0E68C'
+      };
+
+      // --- UTILS ---
+      const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
+      const hasMonopoly = (playerId, property, allProperties) => {
+        if (!property.group || ['railroad', 'utility'].includes(property.group)) {
+            return false;
+        }
+        const groupProperties = allProperties.filter(p => p.group === property.group);
+        return groupProperties.every(p => p.ownerId === playerId);
+      };
+      const getTextColorForBg = (hexColor) => {
+          if (!hexColor || hexColor.length < 4) return '#000000';
+          let cleanHex = hexColor.startsWith('#') ? hexColor.slice(1) : hexColor;
+          if (cleanHex.length === 3) {
+            cleanHex = cleanHex.split('').map(c => c + c).join('');
+          }
+          const r = parseInt(cleanHex.substring(0, 2), 16);
+          const g = parseInt(cleanHex.substring(2, 4), 16);
+          const b = parseInt(cleanHex.substring(4, 6), 16);
+          const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+          return luminance > 0.5 ? '#000000' : '#FFFFFF';
+      };
+
+      const AudioPlayer = {
+        notification: new Audio('https://contactoiut.github.io/sonidos/sounds/bubble.mp3'),
+        transaction: new Audio('https://contactoiut.github.io/sonidos/sounds/cash.mp3'),
+        playNotification: () => {
+          AudioPlayer.notification.currentTime = 0;
+          AudioPlayer.notification.play().catch(e => console.error("Audio play failed:", e));
+        },
+        playTransaction: () => {
+          AudioPlayer.transaction.currentTime = 0;
+          AudioPlayer.transaction.play().catch(e => console.error("Audio play failed:", e));
+        },
+      };
+
+      // --- COMPONENTS ---
+      const QrScanner = ({ onScanSuccess, onCancel }) => {
+        React.useEffect(() => {
+          const scanner = new Html5QrcodeScanner('qr-reader-container', { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true }, false);
+          const handleSuccess = (decodedText) => { scanner.clear().catch(console.error); onScanSuccess(decodedText); };
+          const handleError = () => {};
+          scanner.render(handleSuccess, handleError);
+          return () => { if (scanner.getState()) scanner.clear().catch(console.error); };
+        }, [onScanSuccess]);
+        
+        return React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex flex-col items-center justify-center z-50 p-4" },
+          React.createElement('div', { className: "bg-white p-6 rounded-lg shadow-xl w-full max-w-md text-gray-900" },
+            React.createElement('div', { id: "qr-reader-container" })
+          ),
+          React.createElement('button', { onClick: onCancel, className: "mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors" }, 'Cancel')
+        );
+      };
+
+      const StatusIndicator = ({ status }) => {
+        const config = {
+          [ConnectionStatus.INITIALIZING]: { text: 'Initializing...', color: 'bg-gray-500' },
+          [ConnectionStatus.CONNECTING]: { text: 'Connecting...', color: 'bg-yellow-500' },
+          [ConnectionStatus.CONNECTED]: { text: 'Ready', color: 'bg-green-500' },
+          [ConnectionStatus.DISCONNECTED]: { text: 'Disconnected', color: 'bg-gray-600' },
+          [ConnectionStatus.ERROR]: { text: 'Connection Error', color: 'bg-red-500' },
+          [ConnectionStatus.IN_LOBBY]: { text: 'In Lobby', color: 'bg-blue-500' },
+          [ConnectionStatus.IN_GAME]: { text: 'In Game', color: 'bg-purple-500' },
+        }[status] || { text: 'Unknown', color: 'bg-gray-400' };
+
+        return React.createElement('div', { className: "flex items-center space-x-2 p-2 bg-slate-700 rounded-lg" },
+          React.createElement('span', { className: `w-3 h-3 rounded-full ${config.color} animate-pulse` }),
+          React.createElement('span', { className: "text-sm font-medium" }, config.text)
+        );
+      };
+      
+      const TradeModal = ({ gameState, me, onClose, onAction }) => {
+            const otherPlayers = gameState.players.filter(p => p.id !== me.id);
+            const [targetId, setTargetId] = React.useState(otherPlayers[0]?.id || 'bank');
+            const [amount, setAmount] = React.useState('');
+            const [offeredProperties, setOfferedProperties] = React.useState(new Set());
+            const [requestedProperties, setRequestedProperties] = React.useState(new Set());
+
+            const myProperties = gameState.properties.filter(p => p.ownerId === me.id && !p.isMortgaged);
+            const targetProperties = targetId !== 'bank' ? gameState.properties.filter(p => p.ownerId === targetId && !p.isMortgaged) : [];
+
+            React.useEffect(() => { setRequestedProperties(new Set()); }, [targetId]);
+
+            const handlePropToggle = (propId, list, setList) => {
+                const newList = new Set(list);
+                if (newList.has(propId)) newList.delete(propId); else newList.add(propId);
+                setList(newList);
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const numAmount = parseInt(amount, 10) || 0;
+                
+                if (numAmount === 0 && offeredProperties.size === 0 && requestedProperties.size === 0) { alert('La oferta está vacía. Añade dinero o propiedades.'); return; }
+                
+                const targetPlayer = gameState.players.find(p => p.id === targetId);
+
+                if (numAmount < 0 && targetPlayer && targetPlayer.money < Math.abs(numAmount)) { alert(`${targetPlayer.name} no tiene suficientes fondos para este cobro.`); return; }
+                if (numAmount > 0 && me.money < numAmount) { alert(`No tienes suficientes fondos para este pago.`); return; }
+                
+                onAction({ 
+                    type: 'CREATE_TRADE_OFFER', 
+                    payload: { 
+                        toId: targetId, 
+                        amount: numAmount, 
+                        propertiesOffered: Array.from(offeredProperties), 
+                        propertiesRequested: Array.from(requestedProperties), 
+                        description: `Oferta de intercambio con ${targetId === 'bank' ? 'El Banco' : targetPlayer?.name}` 
+                    }
+                });
+                
+                onClose();
+            };
+            
+            const PropertyCheckboxList = ({ title, properties, selected, onToggle }) => (
+                React.createElement('div', null,
+                    React.createElement('h4', { className: "font-bold text-slate-300 mb-2" }, title),
+                    properties.length === 0 ? React.createElement('p', { className: "text-sm text-slate-500 italic" }, "Nada que ofrecer (propiedades hipotecadas no se pueden intercambiar).") :
+                    React.createElement('div', { className: "grid grid-cols-2 gap-2 max-h-32 overflow-y-auto bg-slate-900/50 p-2 rounded-md" },
+                        properties.map(p => (
+                            React.createElement('label', { key: p.id, className: `flex items-center gap-2 p-1.5 rounded-md cursor-pointer text-xs ${selected.has(p.id) ? 'bg-teal-600' : 'bg-slate-700 hover:bg-slate-600'}` },
+                                React.createElement('input', { type: "checkbox", checked: selected.has(p.id), onChange: () => onToggle(p.id), className: "hidden" }),
+                                React.createElement('div', { style: {backgroundColor: propertyGroupColors[p.group]}, className: "w-3 h-3 rounded-sm flex-shrink-0" }),
+                                React.createElement('span', { className: "truncate" }, p.name)
+                            )
+                        ))
+                    )
+                )
+            );
+
+            return (
+                React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in" },
+                    React.createElement('form', { onSubmit: handleSubmit, className: "bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg text-white space-y-4" },
+                        React.createElement('div', { className: "flex justify-between items-center" }, 
+                          React.createElement('h3', { className: "text-xl font-bold" }, "Proponer Intercambio"), 
+                          React.createElement('button', { type: "button", onClick: onClose, className: "text-2xl font-bold hover:text-red-500" }, "×")
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { htmlFor: "targetPlayer", className: "block text-sm font-medium text-slate-300 mb-1" }, "Intercambio con:"),
+                            React.createElement('select', { id: "targetPlayer", value: targetId, onChange: e => setTargetId(e.target.value), className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" },
+                                React.createElement('option', { value: "bank" }, "El Banco"),
+                                otherPlayers.map(p => React.createElement('option', { key: p.id, value: p.id }, p.name))
+                            )
+                        ),
+                        React.createElement('div', null,
+                            React.createElement('label', { htmlFor: "amount", className: "block text-sm font-medium text-slate-300 mb-1" }, "Dinero a intercambiar:"),
+                            React.createElement('input', { type: "number", id: "amount", value: amount, onChange: e => setAmount(e.target.value), placeholder: "Ej: 100 para pagar, -100 para cobrar", className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" })
+                        ),
+                        React.createElement(PropertyCheckboxList, { title: "Tus propiedades a ofrecer:", properties: myProperties, selected: offeredProperties, onToggle: (id) => handlePropToggle(id, offeredProperties, setOfferedProperties) }),
+                        targetId !== 'bank' && React.createElement(PropertyCheckboxList, { title: "Sus propiedades a solicitar:", properties: targetProperties, selected: requestedProperties, onToggle: (id) => handlePropToggle(id, requestedProperties, setRequestedProperties) }),
+                        React.createElement('button', { type: "submit", className: "w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition" }, "Enviar Oferta")
+                    )
+                )
+            );
+        };
+        
+      const PropertyDetailModal = ({ property, gameState, me, onClose, onAction }) => {
+          const [isCollectingRent, setIsCollectingRent] = React.useState(false);
+          const [isPayingRent, setIsPayingRent] = React.useState(false);
+          const [rentTargetId, setRentTargetId] = React.useState(gameState.players.filter(p => p.id !== me.id)[0]?.id || null);
+          const [diceRoll, setDiceRoll] = React.useState('');
+
+          if (!property) return null;
+
+          const isOwner = property.ownerId === me.id;
+          const owner = property.ownerId ? gameState.players.find(p => p.id === property.ownerId) : null;
+          const getPropertyType = (prop) => { if (['railroad'].includes(prop.group)) return 'railroad'; if (['utility'].includes(prop.group)) return 'utility'; return 'street'; };
+          const propertyType = getPropertyType(property);
+          const isMonopoly = propertyType === 'street' ? hasMonopoly(me.id, property, gameState.properties) : false;
+          const unmortgageCost = Math.ceil(property.mortgageValue * 1.1);
+          
+          let canBuildEvenly = true, canDemolishEvenly = true;
+          if (isMonopoly && propertyType === 'street') {
+              const groupProperties = gameState.properties.filter(p => p.group === property.group && p.ownerId === me.id);
+              if (groupProperties.length > 0) {
+                  const houseLevels = groupProperties.map(p => p.houses);
+                  const minHouses = Math.min(...houseLevels);
+                  const maxHouses = Math.max(...houseLevels);
+                  canBuildEvenly = property.houses === minHouses;
+                  canDemolishEvenly = property.houses === maxHouses;
+              }
+          }
+
+          const calculateRent = React.useCallback((p, currentDiceRoll) => {
+              let rentAmount = 0;
+              const type = getPropertyType(p);
+              const ownerId = p.ownerId;
+              if (!ownerId || p.isMortgaged) return 0;
+              if (type === 'street') { const monopoly = hasMonopoly(ownerId, p, gameState.properties); const baseRent = p.rent[p.houses]; rentAmount = (monopoly && p.houses === 0) ? baseRent * 2 : baseRent; } 
+              else if (type === 'railroad') { const ownedRailroads = gameState.properties.filter(prop => prop.group === 'railroad' && prop.ownerId === ownerId).length; rentAmount = p.rent[ownedRailroads - 1] || 0; } 
+              else if (type === 'utility') {
+                  const ownedUtilities = gameState.properties.filter(prop => prop.group === 'utility' && prop.ownerId === ownerId).length;
+                  const multiplier = ownedUtilities === 1 ? p.rent[0] : p.rent[1];
+                  const roll = parseInt(currentDiceRoll, 10);
+                  if (isNaN(roll) || roll < 2 || roll > 12) return null;
+                  rentAmount = roll * multiplier;
+              }
+              return rentAmount;
+          }, [gameState.properties]);
+          
+          const initialRentAmount = React.useMemo(() => calculateRent(property, ''), [property, calculateRent]);
+          const finalRentAmount = React.useMemo(() => calculateRent(property, diceRoll), [property, diceRoll, calculateRent]);
+
+          const handleCollectRent = () => {
+              if (!rentTargetId || finalRentAmount === null) return;
+              const targetPlayer = gameState.players.find(p=>p.id === rentTargetId);
+              if (targetPlayer.money < finalRentAmount) { alert(`${targetPlayer.name} no tiene fondos suficientes para cubrir este alquiler.`); return; }
+              onAction({ type: 'CREATE_TRADE_OFFER', payload: { toId: rentTargetId, amount: -finalRentAmount, propertiesOffered: [], propertiesRequested: [], description: `Cobrar alquiler de ${property.name}` } });
+              onClose();
+          };
+          
+          const handlePayRent = () => {
+              if (!owner || finalRentAmount === null) return;
+              if (me.money < finalRentAmount) { alert("No tienes fondos suficientes."); return; }
+              onAction({ type: 'CREATE_PAYMENT_OFFER', payload: { toId: owner.id, amount: finalRentAmount, description: `Pagar alquiler por ${property.name}` }});
+              onClose();
+          };
+          
+          const getBuildButtonText = () => { if (property.houses < 4) return `Construir (${formatCurrency(property.houseCost)})`; if (property.houses === 4) return `Construir Hotel (${formatCurrency(property.houseCost)})`; return "Máximo"; };
+          const getDisabledReason = () => { if (!isOwner) return "No eres el dueño de esta propiedad."; if (property.isMortgaged) return "La propiedad está hipotecada."; if (!isMonopoly) return "Necesitas el monopolio del grupo para construir."; if (!canBuildEvenly) return "Debes construir de forma pareja en todas las propiedades del grupo."; if (me.money < property.houseCost) return "No tienes suficiente dinero."; if (property.houses >= 5) return "Ya has alcanzado el máximo de edificios."; return ""; };
+          const getDemolishDisabledReason = () => { if (property.houses === 0) return "No hay edificios para demoler."; if (!canDemolishEvenly) return "Debes demoler de forma pareja en todo el grupo."; return `Vender por ${formatCurrency(property.houseCost / 2)}`; };
+          
+          const renderCardContent = () => {
+              const mortgageOverlay = property.isMortgaged ? React.createElement('div', { className: "absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10 pointer-events-none" }, React.createElement('span', { className: "text-red-600 text-4xl sm:text-5xl font-black uppercase tracking-widest transform -rotate-12 border-4 border-red-600 px-4 py-2 bg-black/20" }, "Hipotecado")) : null;
+              switch(propertyType) {
+                  case 'railroad': return React.createElement('div', { className: "relative bg-slate-300 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('h4', { className: "text-2xl font-bold" }, property.name)), React.createElement('div', { className: "text-center space-y-1 py-2 text-sm" }, React.createElement('p', null, `Si se posee 1 Ferrocarril: ${formatCurrency(property.rent[0])}`), React.createElement('p', null, `Si se poseen 2 Ferrocarriles: ${formatCurrency(property.rent[1])}`), React.createElement('p', null, `Si se poseen 3 Ferrocarriles: ${formatCurrency(property.rent[2])}`), React.createElement('p', null, `Si se poseen 4 Ferrocarriles: ${formatCurrency(property.rent[3])}`), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`)));
+                  case 'utility': return React.createElement('div', { className: "relative bg-slate-300 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group], color: getTextColorForBg(propertyGroupColors[property.group]) }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('h4', { className: "text-2xl font-bold" }, property.name)), React.createElement('div', { className: "text-center space-y-2 py-3 px-2 text-sm" }, React.createElement('p', null, "Si se posee una 'Compañía', el alquiler es ", React.createElement('span', { className: "font-bold" }, property.rent[0]), " veces el valor de los dados."), React.createElement('p', null, "Si se poseen las dos 'Compañías', el alquiler es ", React.createElement('span', { className: "font-bold" }, property.rent[1]), " veces el valor de los dados."), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`)));
+                  case 'street': default: const ownerHasMonopoly = hasMonopoly(property.ownerId, property, gameState.properties); return React.createElement('div', { className: "relative bg-amber-100 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('p', { className: "text-xs uppercase" }, "Título de Propiedad"), React.createElement('h4', { className: "text-xl font-bold" }, property.name), React.createElement('div', { className: "flex justify-center items-center gap-1 h-7 text-2xl" }, property.houses > 0 && property.houses < 5 && Array.from({length: property.houses}).map((_, i) => React.createElement('span', { key: i, title: "House" }, "🏠")), property.houses === 5 && React.createElement('span', { title: "Hotel" }, "🏨"))), React.createElement('div', { className: "text-center space-y-1 py-2 text-sm" }, React.createElement('p', null, `Alquiler ${formatCurrency(property.rent[0])}`), ownerHasMonopoly && property.houses === 0 && React.createElement('p', { className: "font-bold text-green-700" }, "El alquiler del solar se duplica"), React.createElement('p', null, `Con 1 Casa: ${formatCurrency(property.rent[1])}`), React.createElement('p', null, `Con 2 Casas: ${formatCurrency(property.rent[2])}`), React.createElement('p', null, `Con 3 Casas: ${formatCurrency(property.rent[3])}`), React.createElement('p', null, `Con 4 Casas: ${formatCurrency(property.rent[4])}`), React.createElement('p', { className: "font-bold" }, `Con HOTEL: ${formatCurrency(property.rent[5])}`), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`), React.createElement('p', null, `Coste de las casas: ${formatCurrency(property.houseCost)} c/u`), React.createElement('p', null, `Los hoteles cuestan ${formatCurrency(property.houseCost)} más 4 casas`)));
+              }
+          }
+
+          const renderActionButtons = () => {
+              const createRequest = (type, payload) => { onAction( { type, payload }); onClose(); };
+              const ownerActions = React.createElement(React.Fragment, null, !isCollectingRent ? React.createElement('button', { onClick: () => setIsCollectingRent(true), disabled: property.isMortgaged, className: "w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition", title: property.isMortgaged ? "La propiedad está hipotecada." : "" }, 'Cobrar Alquiler', initialRentAmount > 0 && ` (${formatCurrency(initialRentAmount)})`) : React.createElement('div', { className: "bg-slate-700 p-3 rounded-lg space-y-2" }, React.createElement('h5', { className: "font-bold text-center" }, "Cobrar alquiler a:"), React.createElement('select', { value: rentTargetId, onChange: e => setRentTargetId(e.target.value), className: "w-full p-2 rounded-md bg-slate-800 border border-slate-600" }, gameState.players.filter(p => p.id !== me.id).map(p => React.createElement('option', { key: p.id, value: p.id }, p.name))), propertyType === 'utility' && React.createElement('input', { type: "number", value: diceRoll, onChange: (e) => setDiceRoll(e.target.value), placeholder: "Introduce la tirada de dados (2-12)", className: "w-full p-2 rounded-md bg-slate-800 border border-slate-600", min: "2", max: "12" }), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: handleCollectRent, disabled: finalRentAmount === null, className: "w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-500 text-white font-bold py-2 rounded-lg" }, "Enviar Oferta", finalRentAmount !== null && ` (${formatCurrency(finalRentAmount)})`), React.createElement('button', { onClick: () => setIsCollectingRent(false), className: "w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 rounded-lg" }, "Cancelar"))), property.isMortgaged ? React.createElement('button', { onClick: () => createRequest('ACTION_REQUEST', { requestType: 'UNMORTGAGE_PROPERTY', propertyId: property.id, description: `Pagar hipoteca de ${property.name}` }), disabled: me.money < unmortgageCost, className: "w-full bg-yellow-400 hover:bg-yellow-500 disabled:bg-slate-600 text-black font-bold py-3 px-4 rounded-lg transition", title: me.money < unmortgageCost ? "No tienes suficiente dinero." : "" }, `Pagar Hipoteca (${formatCurrency(unmortgageCost)})`) : React.createElement('button', { onClick: () => createRequest('ACTION_REQUEST', { requestType: 'MORTGAGE_PROPERTY', propertyId: property.id, description: `Hipotecar ${property.name}` }), disabled: property.houses > 0, className: "w-full bg-yellow-600 hover:bg-yellow-700 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition", title: property.houses > 0 ? "Vende los edificios primero." : "" }, `Hipotecar (${formatCurrency(property.mortgageValue)})`), propertyType === 'street' && React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: () => createRequest('ACTION_REQUEST', { requestType: 'BUILD_HOUSE', propertyId: property.id, description: `Construir ${property.houses === 4 ? 'un hotel' : 'una casa'} en ${property.name}` }), disabled: property.isMortgaged || property.houses >= 5 || me.money < property.houseCost || !isMonopoly || !canBuildEvenly, className: "flex-1 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition", title: getDisabledReason() }, getBuildButtonText()), React.createElement('button', { onClick: () => createRequest('ACTION_REQUEST', { requestType: 'DEMOLISH_BUILDING', propertyId: property.id, description: `Demoler un edificio en ${property.name}`}), disabled: property.houses === 0 || !canDemolishEvenly, className: "flex-1 bg-red-700 hover:bg-red-800 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition", title: getDemolishDisabledReason() }, `Demoler (${formatCurrency(property.houseCost / 2)})`)));
+              const tenantActions = React.createElement(React.Fragment, null, !isPayingRent ? React.createElement('button', { onClick: () => setIsPayingRent(true), disabled: property.isMortgaged || (initialRentAmount !== null && me.money < initialRentAmount), className: "w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition", title: property.isMortgaged ? "La propiedad está hipotecada." : (me.money < (initialRentAmount || 0) ? "No tienes fondos suficientes." : "") }, 'Pagar Alquiler', initialRentAmount > 0 && ` (${formatCurrency(initialRentAmount)})`) : React.createElement('div', { className: "bg-slate-700 p-3 rounded-lg space-y-2" }, React.createElement('h5', { className: "font-bold text-center" }, `Pagar alquiler a ${owner.name}`), propertyType === 'utility' && React.createElement('input', { type: "number", value: diceRoll, onChange: (e) => setDiceRoll(e.target.value), placeholder: "Introduce tu tirada de dados (2-12)", className: "w-full p-2 rounded-md bg-slate-800 border border-slate-600", min: "2", max: "12" }), React.createElement('div', { className: "flex gap-2" }, React.createElement('button', { onClick: handlePayRent, disabled: finalRentAmount === null || me.money < finalRentAmount, className: "w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-500 text-white font-bold py-2 rounded-lg" }, "Confirmar Oferta", finalRentAmount !== null && ` (${formatCurrency(finalRentAmount)})`), React.createElement('button', { onClick: () => setIsPayingRent(false), className: "w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 rounded-lg" }, "Cancelar"))));
+              return React.createElement('div', { className: "p-4 space-y-3 border-t border-slate-700" }, isOwner && ownerActions, !isOwner && owner && tenantActions);
+          };
+
+          return (
+              React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in" },
+                  React.createElement('div', { className: "bg-slate-800 rounded-lg shadow-xl w-full max-w-md text-white flex flex-col max-h-[90vh]" },
+                       React.createElement('div', { className: "flex justify-between items-center p-4 border-b border-slate-600 flex-shrink-0" },
+                          React.createElement('h3', { className: "text-xl font-bold" }, "Detalle de Propiedad"),
+                          React.createElement('button', { onClick: onClose, className: "text-2xl font-bold hover:text-red-500" }, "×")
+                      ),
+                      React.createElement('div', { className: "overflow-y-auto" },
+                          React.createElement('div', { className: "p-4" }, renderCardContent()),
+                          renderActionButtons()
+                      )
+                  )
+              )
+          );
+      };
+
+      const BankModal = ({ gameState, onClose, onAction }) => {
+            const [activeTab, setActiveTab] = React.useState('requests');
+            const [payGoPlayer, setPayGoPlayer] = React.useState(gameState.players[0]?.id || '');
+            const [sellPropPlayer, setSellPropPlayer] = React.useState(gameState.players[0]?.id || '');
+            const [transferPlayer, setTransferPlayer] = React.useState(gameState.players[0]?.id || '');
+            const unownedProperties = gameState.properties.filter(p => !p.ownerId);
+            const [sellPropProperty, setSellPropProperty] = React.useState(unownedProperties[0]?.id || '');
+            const [transferAmount, setTransferAmount] = React.useState('');
+            const [isPropertyDropdownOpen, setIsPropertyDropdownOpen] = React.useState(false);
+
+            const handlePayGo = (e) => { e.preventDefault(); if (!payGoPlayer) return; onAction({ type: 'CREATE_PAYMENT_OFFER', payload: { fromId: 'bank', toId: payGoPlayer, amount: 200, description: 'Cobro por pasar por la Salida' }}); onClose(); };
+            const handleSellProperty = (e) => {
+                e.preventDefault();
+                const property = unownedProperties.find(p => p.id === sellPropProperty);
+                const buyer = gameState.players.find(p => p.id === sellPropPlayer);
+                if (!property || !buyer || buyer.money < property.price) { alert('Venta inválida. El jugador no tiene suficiente dinero o la propiedad no está disponible.'); return; }
+                onAction({ type: 'SELL_PROPERTY', payload: { buyerId: sellPropPlayer, propertyId: sellPropProperty }});
+                onClose();
+            };
+            const handleTransfer = (e) => {
+                e.preventDefault();
+                const amount = parseInt(transferAmount, 10);
+                if (!transferPlayer || !amount || isNaN(amount)) return;
+                if (amount > 0) {
+                    onAction({ type: 'CREATE_PAYMENT_OFFER', payload: { fromId: 'bank', toId: transferPlayer, amount: amount, description: 'Transferencia del Banco' }});
+                } else {
+                    onAction({ type: 'BANK_TRANSFER', payload: { playerId: transferPlayer, amount: amount }});
+                }
+                setTransferAmount('');
+                onClose();
+            };
+
+            const handleRequestAction = (type, requestId) => { onAction({ type, payload: { requestId } }); };
+            
+            const renderTradeDetails = (req) => {
+                const { fromName, toId, amount, propertiesOffered, propertiesRequested } = req;
+                const toName = toId === 'bank' ? 'El Banco' : gameState.players.find(p => p.id === toId)?.name;
+                const getPropNames = (ids) => ids.map(id => gameState.properties.find(p => p.id === id)?.name || '???').join(', ');
+                return React.createElement('p', { className: "text-sm flex-grow" }, React.createElement('span', { className: "font-bold text-slate-300" }, fromName), ` propone un intercambio con `, React.createElement('span', { className: "font-bold text-slate-300" }, toName), `.`, React.createElement('ul', { className: "list-disc list-inside text-xs pl-2 text-slate-400" }, amount !== 0 && React.createElement('li', null, "Dinero: ", React.createElement('span', { className: `font-bold ${amount > 0 ? 'text-green-400' : 'text-red-400'}` }, fromName, amount > 0 ? ' ofrece pagar ' : ' solicita cobrar ', ` ${formatCurrency(Math.abs(amount))}`)), propertiesOffered.length > 0 && React.createElement('li', null, fromName, " ofrece: ", React.createElement('span', { className: "font-bold" }, getPropNames(propertiesOffered))), propertiesRequested.length > 0 && React.createElement('li', null, fromName, " solicita: ", React.createElement('span', { className: "font-bold" }, getPropNames(propertiesRequested)))));
+            };
+
+            const renderRequestsTab = () => (
+              React.createElement('div', { className: "space-y-3" },
+                gameState.pendingRequests?.length > 0 ? (
+                    gameState.pendingRequests.map(req => (
+                        React.createElement('div', { key: req.id, className: "bg-slate-900 p-3 rounded-lg flex justify-between items-center gap-2" },
+                            req.requestType === 'TRADE_REQUEST' ? renderTradeDetails(req) : React.createElement('p', { className: "text-sm flex-grow" }, React.createElement('span', { className: "font-bold text-slate-300" }, req.fromName), React.createElement('span', null, ` solicita: ${req.description}`)),
+                            React.createElement('div', { className: "flex-shrink-0 flex gap-2" },
+                                React.createElement('button', { onClick: () => handleRequestAction('APPROVE_REQUEST', req.id), className: "bg-green-600 hover:bg-green-700 text-white font-bold text-xs p-2 rounded-md" }, "✓"),
+                                React.createElement('button', { onClick: () => handleRequestAction('REJECT_REQUEST', req.id), className: "bg-red-600 hover:bg-red-700 text-white font-bold text-xs p-2 rounded-md" }, "×")
+                            )
+                        )
+                    ))
+                ) : ( React.createElement('p', { className: "text-slate-400 text-center py-8" }, "No hay solicitudes pendientes.") )
+              )
+            );
+
+            const renderActionsTab = () => {
+                const selectedPropertyForButton = unownedProperties.find(p => p.id === sellPropProperty);
+                const buttonStyle = selectedPropertyForButton ? { backgroundColor: propertyGroupColors[selectedPropertyForButton.group], color: getTextColorForBg(propertyGroupColors[selectedPropertyForButton.group]) } : { backgroundColor: '#374151', color: 'white' };
+                return React.createElement('div', { className: "space-y-4" },
+                    React.createElement('form', { onSubmit: handlePayGo, className: "bg-slate-900 p-4 rounded-lg space-y-3" }, React.createElement('h4', { className: "font-bold text-lg" }, "Pagar Salida ($200)"), React.createElement('select', { value: payGoPlayer, onChange: e => setPayGoPlayer(e.target.value), className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" }, gameState.players.map(p => React.createElement('option', { key: p.id, value: p.id }, p.name))), React.createElement('button', { type: "submit", className: "w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg" }, "Ofrecer Pago de $200")),
+                    React.createElement('form', { onSubmit: handleSellProperty, className: "bg-slate-900 p-4 rounded-lg space-y-3" }, React.createElement('h4', { className: "font-bold text-lg" }, "Vender Propiedad"), React.createElement('select', { value: sellPropPlayer, onChange: e => setSellPropPlayer(e.target.value), className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" }, gameState.players.map(p => React.createElement('option', { key: p.id, value: p.id }, p.name))), React.createElement('div', { className: 'relative' }, React.createElement('button', { type: 'button', onClick: () => setIsPropertyDropdownOpen(prev => !prev), className: 'w-full p-2 rounded-md border border-slate-600 text-left transition-colors flex justify-between items-center', style: buttonStyle, 'aria-haspopup': 'listbox', 'aria-expanded': isPropertyDropdownOpen }, selectedPropertyForButton ? `${selectedPropertyForButton.name} (${formatCurrency(selectedPropertyForButton.price)})` : 'Seleccionar propiedad...', React.createElement('span', { className: `transform transition-transform text-xs ${isPropertyDropdownOpen ? 'rotate-180' : ''}`, 'aria-hidden': 'true' }, '▼')), isPropertyDropdownOpen && React.createElement('ul', { className: 'absolute z-10 w-full bg-slate-800 border border-slate-600 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg', role: 'listbox' }, unownedProperties.length > 0 ? unownedProperties.map(p => React.createElement('li', { key: p.id, onClick: () => { setSellPropProperty(p.id); setIsPropertyDropdownOpen(false); }, className: 'p-2 cursor-pointer text-sm font-bold hover:bg-slate-700/50', style: { backgroundColor: propertyGroupColors[p.group], color: getTextColorForBg(propertyGroupColors[p.group]) }, role: 'option', 'aria-selected': sellPropProperty === p.id }, `${p.name} (${formatCurrency(p.price)})`)) : React.createElement('li', { className: 'p-2 text-slate-500' }, 'No hay propiedades'))), React.createElement('button', { type: "submit", disabled: !sellPropProperty || unownedProperties.length === 0, className: "w-full bg-teal-600 hover:bg-teal-700 disabled:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg" }, "Vender Propiedad")),
+                    React.createElement('form', { onSubmit: handleTransfer, className: "bg-slate-900 p-4 rounded-lg space-y-3" }, React.createElement('h4', { className: "font-bold text-lg" }, "Transferir Dinero del Banco"), React.createElement('select', { value: transferPlayer, onChange: e => setTransferPlayer(e.target.value), className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" }, gameState.players.map(p => React.createElement('option', { key: p.id, value: p.id }, p.name))), React.createElement('input', { type: "number", value: transferAmount, onChange: e => setTransferAmount(e.target.value), placeholder: "Cantidad (+ para ofrecer, - para quitar)", className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" }), React.createElement('button', { type: "submit", className: "w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg" }, "Realizar Transferencia"))
+                );
+            };
+
+            return (
+                React.createElement('div', { className: "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 animate-fade-in" },
+                    React.createElement('div', { className: "bg-slate-800 p-6 rounded-lg shadow-xl w-full max-w-lg text-white" },
+                        React.createElement('div', { className: "flex justify-between items-center mb-4" }, React.createElement('h3', { className: "text-xl font-bold" }, "Panel del Banco"), React.createElement('button', { onClick: onClose, className: "text-2xl font-bold hover:text-red-500" }, "×")),
+                        React.createElement('div', { className: "flex border-b border-slate-600 mb-4" },
+                            React.createElement('button', { onClick: () => setActiveTab('requests'), className: `relative py-2 px-4 font-semibold ${activeTab === 'requests' ? 'border-b-2 border-teal-500 text-teal-400' : 'text-slate-400 hover:bg-slate-700/50'}` }, "Solicitudes", gameState.pendingRequests?.length > 0 && React.createElement('span', { className: "absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold" }, gameState.pendingRequests.length)),
+                            React.createElement('button', { onClick: () => setActiveTab('actions'), className: `py-2 px-4 font-semibold ${activeTab === 'actions' ? 'border-b-2 border-teal-500 text-teal-400' : 'text-slate-400 hover:bg-slate-700/50'}` }, "Acciones del Banco")
+                        ),
+                        React.createElement('div', { className: "max-h-[60vh] overflow-y-auto pr-2" }, activeTab === 'requests' ? renderRequestsTab() : renderActionsTab())
+                    )
+                )
+            );
+        };
+
+      const BoardSummaryCard = ({ gameState, onPropertyClick }) => {
+            const netWorthData = React.useMemo(() => {
+                if (!gameState || !gameState.players) return { playersWithNetWorth: [], totalNetWorth: 1 };
+                const playersWithNetWorth = gameState.players.map(player => {
+                    const propertiesValue = gameState.properties.filter(p => p.ownerId === player.id && !p.isMortgaged).reduce((sum, p) => sum + p.mortgageValue, 0);
+                    const buildingsValue = gameState.properties.filter(p => p.ownerId === player.id).reduce((sum, p) => sum + (p.houses * (p.houseCost / 2)), 0);
+                    const netWorth = player.money + propertiesValue + buildingsValue;
+                    return { ...player, netWorth };
+                });
+                const totalPositiveNetWorth = playersWithNetWorth.reduce((sum, p) => sum + Math.max(0, p.netWorth), 0);
+                return { playersWithNetWorth, totalNetWorth: totalPositiveNetWorth > 0 ? totalPositiveNetWorth : 1 };
+            }, [gameState]);
+
+            const fullBoardOrder = [ 'corner-go', 'brown1', 'chest-1', 'brown2', 'tax-income', 'railroad1', 'lightblue1', 'chance-1', 'lightblue2', 'lightblue3', 'corner-jail', 'pink1', 'utility1', 'pink2', 'pink3', 'railroad2', 'orange1', 'chest-2', 'orange2', 'orange3', 'corner-parking', 'red1', 'chance-2', 'red2', 'red3', 'railroad3', 'yellow1', 'yellow2', 'utility2', 'yellow3', 'corner-go-to-jail', 'green1', 'green2', 'chest-3', 'green3', 'railroad4', 'chance-3', 'blue1', 'tax-luxury', 'blue2' ];
+            const getPosition = (index) => { if (index <= 10) return { gridRow: 11, gridColumn: 11 - index }; if (index <= 20) return { gridRow: 11 - (index - 10), gridColumn: 1 }; if (index <= 30) return { gridRow: 1, gridColumn: 1 + (index - 20) }; if (index <= 39) return { gridRow: 1 + (index - 30), gridColumn: 11 }; return {}; };
+
+            const renderBoardCell = (boardId) => {
+                const property = gameState.properties.find(p => p.id === boardId);
+                if (!property) return React.createElement('div', { className: 'w-full h-full', title: boardId });
+                const owner = gameState.players.find(p => p.id === property.ownerId);
+                return React.createElement('div', { onClick: () => onPropertyClick && onPropertyClick(property), className: `w-full h-full cursor-pointer hover:ring-2 hover:ring-teal-400 z-10`, title: property.isMortgaged ? `${property.name} (Hipotecado)` : property.name },
+                    React.createElement('div', { className: `w-full h-full flex flex-col justify-start items-center relative bg-slate-200 ${property.isMortgaged ? 'grayscale' : ''}` },
+                        React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "h-1/4 w-full" }),
+                        owner && !owner.disconnected && React.createElement('div', { style: { backgroundColor: owner.color, border: '1px solid white' }, className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md" })
+                    )
+                );
+            };
+            
+            return (
+                React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg flex flex-col" },
+                    React.createElement('h3', { className: "text-xl font-bold mb-3" }, "Resumen del Tablero"),
+                    React.createElement('div', { className: "grid grid-cols-11 grid-rows-11 gap-0.5 aspect-square bg-slate-700 border-2 border-slate-600 p-1" }, fullBoardOrder.map((boardId, index) => React.createElement('div', { key: boardId, style: { gridRowStart: getPosition(index).gridRow, gridColumnStart: getPosition(index).gridColumn } }, renderBoardCell(boardId)))),
+                    React.createElement('div', { className: "mt-4" },
+                         React.createElement('h4', { className: "text-sm font-bold mb-2" }, "Patrimonio Neto"),
+                         React.createElement('div', { className: "w-full bg-slate-900 h-6 rounded-md flex overflow-hidden text-xs font-bold items-center" },
+                            netWorthData.playersWithNetWorth.map(p => {
+                                const textColor = getTextColorForBg(p.color);
+                                const widthPercentage = (Math.max(0, p.netWorth) / netWorthData.totalNetWorth) * 100;
+                                return React.createElement('div', { key: p.id, style: { width: `${widthPercentage}%`, backgroundColor: p.color, color: textColor }, className: `h-full flex items-center justify-center px-1 truncate transition-all duration-500 ease-out ${p.disconnected ? 'opacity-50' : ''}`, title: `${p.name}: ${formatCurrency(p.netWorth)}` }, widthPercentage > 10 && React.createElement('span', null, `${(p.netWorth/1000).toFixed(1)}k`))
+                            })
+                         )
+                    )
+                )
+            );
+        };
+        
+      const PendingOffersNotification = ({ gameState, me, onAction }) => {
+            if (!gameState || !me) return null;
+            const myOffers = gameState.pendingOffers?.filter(o => o.toId === me.id);
+
+            const prevOffersCount = React.useRef(myOffers?.length || 0);
+            React.useEffect(() => {
+                const currentCount = myOffers?.length || 0;
+                if (currentCount > 0 && currentCount > prevOffersCount.current) {
+                    AudioPlayer.playNotification();
+                }
+                prevOffersCount.current = currentCount;
+            }, [myOffers]);
+
+            if (!myOffers || myOffers.length === 0) return null;
+
+            const handleResponse = (type, offerId) => onAction({ type, payload: { offerId } });
+
+            return React.createElement('div', { className: "fixed bottom-4 right-4 md:bottom-auto md:top-24 md:right-4 w-full max-w-sm bg-slate-700/90 backdrop-blur-sm rounded-lg shadow-2xl z-50 p-4 border border-teal-500/50 animate-fade-in-up" },
+                myOffers.map(offer => (
+                    React.createElement('div', { key: offer.id, className: "text-white" },
+                        React.createElement('h4', { className: "font-bold text-teal-400" }, "Oferta de Pago Recibida"),
+                        React.createElement('p', { className: "text-sm mt-1" }, 
+                            React.createElement('span', { className: 'font-bold' }, offer.fromName),
+                            " te ofrece pagar ",
+                            React.createElement('span', { className: 'font-bold text-green-400' }, formatCurrency(offer.amount)),
+                            offer.description && React.createElement('span', { className: 'text-slate-300 italic' }, ` por "${offer.description}"`)
+                        ),
+                        React.createElement('div', { className: "flex gap-2 mt-3" },
+                            React.createElement('button', { onClick: () => handleResponse('ACCEPT_PAYMENT_OFFER', offer.id), className: "flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition" }, "Aceptar"),
+                            React.createElement('button', { onClick: () => handleResponse('REJECT_PAYMENT_OFFER', offer.id), className: "flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition" }, "Rechazar")
+                        )
+                    )
+                ))
+            );
+        };
+
+      const PendingTradesNotification = ({ gameState, me, onAction }) => {
+            if (!gameState || !me) return null;
+            const myTradeOffers = gameState.pendingTrades?.filter(t => t.toId === me.id);
+
+            const prevTradesCount = React.useRef(myTradeOffers?.length || 0);
+            React.useEffect(() => {
+                const currentCount = myTradeOffers?.length || 0;
+                if (currentCount > 0 && currentCount > prevTradesCount.current) {
+                    AudioPlayer.playNotification();
+                }
+                prevTradesCount.current = currentCount;
+            }, [myTradeOffers]);
+            
+            if (!myTradeOffers || myTradeOffers.length === 0) return null;
+
+            const handleResponse = (type, tradeId) => onAction({ type, payload: { tradeId } });
+            
+            const renderGenericTradeDetails = (trade) => {
+                const { fromName, amount, propertiesOffered, propertiesRequested } = trade;
+                const getPropNames = (ids) => ids.map(id => gameState.properties.find(p => p.id === id)?.name || '???').join(', ') || 'nada';
+
+                return React.createElement('div', { className: "text-sm mt-1" },
+                    React.createElement('p', null, React.createElement('span', { className: 'font-bold' }, fromName), " te ha propuesto un intercambio:"),
+                    React.createElement('ul', { className: "list-disc list-inside text-xs pl-2 mt-1 text-slate-300 space-y-1" },
+                        amount > 0 && React.createElement('li', null, "Te ofrece: ", React.createElement('span', { className: 'font-bold text-green-400' }, formatCurrency(amount))),
+                        amount < 0 && React.createElement('li', null, "Te solicita: ", React.createElement('span', { className: 'font-bold text-red-400' }, formatCurrency(Math.abs(amount)))),
+                        propertiesRequested.length > 0 && React.createElement('li', null, "Te ofrece sus propiedades: ", React.createElement('span', { className: 'font-bold' }, getPropNames(propertiesRequested))),
+                        propertiesOffered.length > 0 && React.createElement('li', null, "Te solicita tus propiedades: ", React.createElement('span', { className: 'font-bold' }, getPropNames(propertiesOffered)))
+                    )
+                );
+            };
+
+            return React.createElement('div', { className: "fixed bottom-20 right-4 md:bottom-auto md:top-60 md:right-4 w-full max-w-sm bg-slate-700/90 backdrop-blur-sm rounded-lg shadow-2xl z-50 p-4 border border-yellow-500/50 animate-fade-in-up space-y-4" },
+                myTradeOffers.map(trade => {
+                    const isRentCollection = trade.description?.startsWith('Cobrar alquiler de ');
+
+                    if (isRentCollection) {
+                        const propertyName = trade.description.substring('Cobrar alquiler de '.length);
+                        return React.createElement('div', { key: trade.id, className: "text-white" },
+                            React.createElement('h4', { className: "font-bold text-red-400" }, "Cobro de Alquiler"),
+                            React.createElement('p', { className: "text-sm mt-1" }, 
+                                React.createElement('span', { className: 'font-bold' }, trade.fromName),
+                                " te está cobrando ",
+                                React.createElement('span', { className: 'font-bold' }, formatCurrency(Math.abs(trade.amount))),
+                                ` por el alquiler de `,
+                                React.createElement('span', { className: 'font-bold' }, propertyName),
+                                "."
+                            ),
+                            React.createElement('div', { className: "flex gap-2 mt-3" },
+                                React.createElement('button', { onClick: () => handleResponse('ACCEPT_TRADE_OFFER', trade.id), className: "flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition" }, "Pagar"),
+                                React.createElement('button', { onClick: () => handleResponse('REJECT_TRADE_OFFER', trade.id), className: "flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition" }, "Rechazar")
+                            )
+                        );
+                    }
+
+                    // Default trade offer view
+                    return React.createElement('div', { key: trade.id, className: "text-white" },
+                        React.createElement('h4', { className: "font-bold text-yellow-400" }, "Oferta de Intercambio Recibida"),
+                        renderGenericTradeDetails(trade),
+                        React.createElement('div', { className: "flex gap-2 mt-3" },
+                            React.createElement('button', { onClick: () => handleResponse('ACCEPT_TRADE_OFFER', trade.id), className: "flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition" }, "Aceptar"),
+                            React.createElement('button', { onClick: () => handleResponse('REJECT_TRADE_OFFER', trade.id), className: "flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition" }, "Rechazar")
+                        )
+                    );
+                })
+            );
+        };
+
+      const LobbyScreen = ({ 
+        playerName, setPlayerName, role, peerId, handleCreateRoom, lobby, setLobby, 
+        joinRoomByCode, setIsScannerVisible, handleLeaveRoom, handleStartGame, gameState 
+      }) => {
+          const [isQrVisible, setIsQrVisible] = React.useState(false);
+          const startGameButtonText = gameState ? "Reanudar Partida" : "Iniciar Partida";
+          
+          return React.createElement('div', { className: "flex flex-col space-y-4 w-full text-white" },
+              React.createElement('h2', { className: "text-2xl font-bold text-center" }, "Bancopolio Lobby"),
+              React.createElement('input', { type: "text", value: playerName, onChange: (e) => setPlayerName(e.target.value), placeholder: "Enter Your Name", className: "w-full p-3 rounded-md bg-slate-700 placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" }),
+              !role ? React.createElement(React.Fragment, null, React.createElement('button', { onClick: handleCreateRoom, disabled: !peerId, className: "w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition" }, "Crear Sala de Juego"), React.createElement('div', { className: "relative flex items-center pt-2 pb-2" }, React.createElement('div', { className: "flex-grow border-t border-slate-600" }), React.createElement('span', { className: "flex-shrink mx-4 text-slate-400" }, "O"), React.createElement('div', { className: "flex-grow border-t border-slate-600" })), React.createElement('div', { className: "flex flex-col space-y-2" }, React.createElement('input', { type: "text", value: lobby.roomCode, onChange: (e) => setLobby(prev=>({...prev, roomCode: e.target.value})), placeholder: "Enter Room Code", className: "w-full p-3 rounded-md bg-slate-700 placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" }), React.createElement('div', { className: "flex space-x-2" }, React.createElement('button', { onClick: () => joinRoomByCode(lobby.roomCode), disabled: !lobby.roomCode.trim(), className: "flex-grow bg-teal-600 hover:bg-teal-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition" }, "Unirse al Juego"), React.createElement('button', { onClick: () => setIsScannerVisible(true), className: "bg-slate-600 hover:bg-slate-500 text-white font-bold p-3 rounded-lg transition" }, "Escanear QR")))) :
+              React.createElement('div', { className: "bg-slate-900/50 p-4 rounded-lg" },
+                  React.createElement('div', { className: "flex justify-between items-center mb-3" }, React.createElement('h3', { className: "font-bold" }, `Jugadores en Lobby (${lobby.players.length}/${MAX_PLAYERS})`), React.createElement('button', { onClick: handleLeaveRoom, className: "bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-sm" }, "Salir")),
+                  React.createElement('ul', { className: "space-y-2" }, lobby.players.map(p => React.createElement('li', { key: p.id, className: "flex items-center space-x-3" }, React.createElement('span', { className: "w-4 h-4 rounded-full border-2 border-slate-400", style:{backgroundColor: p.color} }), React.createElement('span', { className: "font-semibold" }, p.name), p.id === peerId && React.createElement('span', { className: "text-xs text-slate-400" }, "(Tú)"), p.role === 'host' && React.createElement('span', { className: "text-xs text-yellow-400 font-bold" }, "(Anfitrión)")))),
+                  role === 'host' && React.createElement('div', { className: "mt-4 text-center" }, React.createElement('p', { className: "text-slate-400 text-sm" }, "Invitar con código:"), React.createElement('p', { className: "text-lg font-mono text-teal-400 bg-slate-700 p-2 rounded-md break-all cursor-pointer", onClick: () => navigator.clipboard.writeText(peerId), title: "Click para copiar" }, peerId), React.createElement('button', { onClick: () => setIsQrVisible(!isQrVisible), className: "mt-2 text-sm bg-teal-800 hover:bg-teal-700 text-white py-1 px-3 rounded-md" }, isQrVisible ? 'Ocultar' : 'Mostrar', ' QR'), isQrVisible && React.createElement('div', { className: "bg-white p-4 mt-4 inline-block rounded-lg" }, React.createElement('img', { src: `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(peerId)}&size=128x128`, alt: `QR Code for room ${peerId}`, width: 128, height: 128 })), React.createElement('button', { onClick: handleStartGame, className: "w-full mt-4 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition" }, startGameButtonText))
+              )
+          );
+      };
+
+      const GameScreen = ({ gameState, peerId, role, handleActionRequest, handleLeaveRoom }) => {
+          const [activeModal, setActiveModal] = React.useState(null);
+          const [selectedProperty, setSelectedProperty] = React.useState(null);
+          const [isCodeCopied, setIsCodeCopied] = React.useState(false);
+          const [isQrVisible, setIsQrVisible] = React.useState(false);
+
+          const me = gameState ? gameState.players.find(p => p.id === peerId) : null;
+          
+          React.useEffect(() => {
+              if (gameState && !me) {
+                  handleLeaveRoom();
+              }
+          }, [gameState, me, handleLeaveRoom]);
+
+          const prevMoneyRef = React.useRef(me?.money);
+          React.useEffect(() => {
+              if (me && prevMoneyRef.current !== undefined && me.money !== prevMoneyRef.current) {
+                  AudioPlayer.playTransaction();
+              }
+              prevMoneyRef.current = me?.money;
+          }, [me?.money]);
+          
+          if (!gameState || !me) { 
+              return React.createElement('div', { className: "text-center text-slate-400" }, "Loading game or redirecting...");
+          }
+
+          const myProperties = gameState.properties.filter(p => p.ownerId === peerId);
+          const pendingRequestCount = gameState.pendingRequests?.length || 0;
+          const handleCopyCode = () => { if (!peerId) return; navigator.clipboard.writeText(peerId); setIsCodeCopied(true); setTimeout(() => setIsCodeCopied(false), 2000); };
+          const handleBoardPropertyClick = (property) => { setSelectedProperty(property); setActiveModal('property'); };
+          
+          const myPropertyCards = myProperties.length === 0 ? React.createElement('p', { className: "text-slate-400" }, "No tienes propiedades.") :
+              React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto max-h-96" },
+                  myProperties.map(prop => React.createElement('div', { key: prop.id, onClick: () => { setSelectedProperty(prop); setActiveModal('property'); }, className: `rounded-md border-2 ${prop.isMortgaged ? 'border-slate-600 grayscale' : 'border-slate-700'} bg-slate-900 shadow-md cursor-pointer hover:border-teal-500 transition`}, React.createElement('div', { style:{backgroundColor: propertyGroupColors[prop.group]}, className: "px-2 py-1 rounded-t-sm text-black font-bold text-xs truncate" }, prop.name), React.createElement('div', { className: "p-2 flex items-center justify-center gap-1 h-12" }, prop.isMortgaged && React.createElement('span', { className: "text-2xl", title: "Mortgaged" }, "⚖️"), prop.houses > 0 && prop.houses < 5 && Array.from({length: prop.houses}).map((_, i) => React.createElement('span', { key: i, className: "text-lg", title: "House" }, "🏠")), prop.houses === 5 && React.createElement('span', { className: "text-xl", title: "Hotel" }, "🏨"))))
+              );
+
+          return (
+              React.createElement('div', { className: "w-full h-full flex flex-col md:flex-row gap-4 p-4 text-white" },
+                  activeModal === 'trade' && React.createElement(TradeModal, { gameState: gameState, me: me, onClose: () => setActiveModal(null), onAction: handleActionRequest }),
+                  activeModal === 'bank' && role === 'host' && React.createElement(BankModal, { gameState: gameState, onClose: () => setActiveModal(null), onAction: handleActionRequest }),
+                  activeModal === 'property' && selectedProperty && React.createElement(PropertyDetailModal, { property: selectedProperty, gameState: gameState, me: me, onClose: () => setActiveModal(null), onAction: handleActionRequest }),
+                  React.createElement(PendingOffersNotification, { gameState: gameState, me: me, onAction: handleActionRequest }),
+                  React.createElement(PendingTradesNotification, { gameState: gameState, me: me, onAction: handleActionRequest }),
+
+                  React.createElement('div', { className: "flex-grow md:w-2/3 flex flex-col gap-4" },
+                      React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg flex justify-between items-center" },
+                          React.createElement('div', null, React.createElement('h2', { className: "text-2xl font-bold" }, me.name), React.createElement('p', { className: "text-3xl font-mono text-teal-400" }, formatCurrency(me.money))),
+                          React.createElement('div', { className: "flex flex-col sm:flex-row gap-2" }, React.createElement('button', { onClick: () => setActiveModal('trade'), className: "bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition" }, "Proponer Intercambio"), role === 'host' && React.createElement('button', { onClick: () => setActiveModal('bank'), className: "relative bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition" }, "Banco", pendingRequestCount > 0 && React.createElement('span', { className: "absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold animate-bounce" }, pendingRequestCount)))
+                      ),
+                      React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg flex-grow" }, React.createElement('h3', { className: "text-xl font-bold mb-3" }, `Mis Propiedades (${myProperties.length})`), myPropertyCards)
+                  ),
+
+                  React.createElement('div', { className: "md:w-1/3 flex flex-col gap-4" },
+                      React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg" },
+                          React.createElement('h3', { className: "text-xl font-bold mb-3" }, "Jugadores"),
+                          React.createElement('ul', { className: "space-y-2" }, gameState.players.map(p => React.createElement('li', { key: p.id, className: `flex justify-between items-center transition-opacity ${p.disconnected ? 'opacity-50' : 'opacity-100'}` }, React.createElement('div', { className: "flex items-center gap-2" }, React.createElement('span', { style:{backgroundColor: p.color}, className: "w-4 h-4 rounded-full border border-slate-500" }), React.createElement('span', { className: "font-semibold" }, p.name, p.id === peerId && ' (Tú)', p.disconnected && React.createElement('span', {className: 'text-xs text-slate-400'}, ' (Desconectado)'))), React.createElement('span', { className: "font-mono text-slate-300" }, formatCurrency(p.money)))))),
+                       React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg flex-grow flex flex-col" },
+                          React.createElement('h3', { className: "text-xl font-bold mb-3" }, "Historial de Actividad"),
+                          React.createElement('div', { className: "bg-slate-900 rounded-md p-2 flex-grow overflow-y-auto h-48 md:h-auto" }, React.createElement('ul', { className: "space-y-1 text-sm text-slate-400" }, gameState.activityLog.slice(0, 20).map((log, i) => React.createElement('li', { key: i, className: "animate-fade-in-down" }, log))))
+                      ),
+                      React.createElement(BoardSummaryCard, { gameState: gameState, onPropertyClick: handleBoardPropertyClick }),
+                      role === 'host' && React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg text-center" }, React.createElement('h3', { className: "text-l font-bold mb-2" }, "Código de la Sala"), React.createElement('div', { className: 'flex items-center gap-2' }, React.createElement('p', { className: "flex-grow text-lg font-mono text-teal-400 bg-slate-900 p-2 rounded-md break-all cursor-pointer hover:bg-slate-700 transition", onClick: handleCopyCode, }, isCodeCopied ? '¡Copiado!' : peerId), React.createElement('button', { onClick: () => setIsQrVisible(!isQrVisible), className: "bg-teal-800 hover:bg-teal-700 text-white font-bold p-2 rounded-md transition", title: "Mostrar/Ocultar QR" }, 'QR')), isQrVisible && React.createElement('div', { className: "bg-white p-4 mt-4 inline-block rounded-lg" }, React.createElement('img', { src: `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(peerId)}&size=128x128`, alt: `QR Code for room ${peerId}`, width: 128, height: 128 }))),
+                      React.createElement('button', { onClick: handleLeaveRoom, className: "w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition" }, "Abandonar Partida")
+                  )
+              )
+          );
+      };
+
+      const App = () => {
+        const [status, setStatus] = React.useState(ConnectionStatus.INITIALIZING);
+        const [peerId, setPeerId] = React.useState('');
+        const [logs, setLogs] = React.useState([]);
+        const [role, setRole] = React.useState(null); // 'host' or 'client'
+        const [lobby, setLobby] = React.useState({ players: [], roomCode: '' });
+        const [playerName, setPlayerName] = React.useState(`Player_${Math.random().toString(36).substr(2, 4)}`);
+        const [gameState, setGameState] = React.useState(null);
+        
+        const [isLoadingSession, setIsLoadingSession] = React.useState(true);
+        const [isScannerVisible, setIsScannerVisible] = React.useState(false);
+
+        const peerRef = React.useRef(null);
+        const connectionsRef = React.useRef(new Map());
+        const roleRef = React.useRef(role);
+        roleRef.current = role;
+
+        // --- Core Logic ---
+        const addLog = React.useCallback((message, type = 'info') => {
+          const timestamp = new Date().toLocaleTimeString();
+          console.log(`[${type.toUpperCase()}] ${timestamp}: ${message}`);
+          setLogs(prev => [{ timestamp, message, type }, ...prev].slice(0, 100));
+        }, []);
+
+        const broadcastMessage = React.useCallback((message, senderIdToExclude) => {
+          connectionsRef.current.forEach((conn, peerId) => {
+            if (peerId !== senderIdToExclude && conn.open) {
+              conn.send(message);
+            }
+          });
+        }, []);
+
+        const sendToHost = React.useCallback((message) => {
+            const hostConnection = connectionsRef.current.values().next().value;
+            if (hostConnection && hostConnection.open) {
+              hostConnection.send(message);
+            } else {
+              addLog('Cannot send message: Not connected to host.', 'error');
+            }
+        }, [addLog]);
+
+        const handleLeaveRoom = React.useCallback(() => {
+          addLog('Leaving the room...', 'system');
+          if (roleRef.current === 'host') {
+            addLog('Host is leaving. Clearing all game data.', 'system');
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+          }
+          connectionsRef.current.forEach(conn => conn.close());
+          connectionsRef.current.clear();
+          setRole(null);
+          setLobby({ players: [], roomCode: ''});
+          setGameState(null);
+          setStatus(ConnectionStatus.CONNECTED);
+        }, [addLog]);
+
+        const processGameAction = React.useCallback((action) => {
+            addLog(`Host processing action: ${action.type} from ${action.payload.fromId || 'bank'}`, 'system');
+
+            setGameState(prev => {
+                if (!prev) return prev;
+
+                let newState = { ...prev, players: [...prev.players], properties: [...prev.properties], pendingRequests: [...prev.pendingRequests], pendingOffers: [...(prev.pendingOffers || [])], pendingTrades: [...(prev.pendingTrades || [])], activityLog: [...prev.activityLog] };
+                let logMessage = '';
+                
+                switch (action.type) {
+                    case 'ACTION_REQUEST': {
+                        const { fromId, description } = action.payload;
+                        const fromPlayer = newState.players.find(p => p.id === fromId);
+                        if (!fromPlayer) break;
+
+                        const newRequest = {
+                            id: `req_${Date.now()}_${Math.random()}`,
+                            fromId,
+                            fromName: fromPlayer.name,
+                            description,
+                            ...action.payload 
+                        };
+                        newState.pendingRequests.unshift(newRequest);
+                        break;
+                    }
+                    
+                    case 'CREATE_PAYMENT_OFFER': {
+                        const { toId, amount, description } = action.payload;
+                        const payerId = action.payload.fromId;
+                        const fromPlayer = payerId === 'bank' ? { name: 'El Banco', id: 'bank' } : newState.players.find(p => p.id === payerId);
+                        const toPlayer = newState.players.find(p => p.id === toId);
+
+                        if (!fromPlayer || !toPlayer || !amount || amount <= 0) break;
+
+                        if (payerId !== 'bank' && 'money' in fromPlayer && fromPlayer.money < amount) {
+                            logMessage = `Oferta de ${fromPlayer.name} a ${toPlayer.name} rechazada: fondos insuficientes.`;
+                            newState.activityLog.unshift(logMessage);
+                            break;
+                        }
+
+                        const newOffer = {
+                            id: `offer_${Date.now()}_${Math.random()}`,
+                            fromId: payerId,
+                            fromName: fromPlayer.name,
+                            toId,
+                            toName: toPlayer.name,
+                            amount,
+                            description,
+                        };
+                        newState.pendingOffers.push(newOffer);
+                        break;
+                    }
+                    
+                    case 'ACCEPT_PAYMENT_OFFER': {
+                        const { offerId } = action.payload;
+                        const acceptingPlayerId = action.payload.fromId;
+
+                        const offerIndex = newState.pendingOffers.findIndex(o => o.id === offerId);
+                        if (offerIndex === -1) break;
+
+                        const offer = newState.pendingOffers[offerIndex];
+
+                        if (offer.toId !== acceptingPlayerId) {
+                            logMessage = `Error: Intento de aceptar una oferta no destinada a este jugador.`;
+                            newState.activityLog.unshift(logMessage);
+                            break;
+                        }
+
+                        const payerIdx = offer.fromId === 'bank' ? -1 : newState.players.findIndex(p => p.id === offer.fromId);
+                        const receiverIdx = newState.players.findIndex(p => p.id === offer.toId);
+
+                        if (receiverIdx === -1) break;
+
+                        if (payerIdx !== -1) {
+                            const payer = newState.players[payerIdx];
+                            if (payer.money < offer.amount) {
+                                logMessage = `Pago de ${payer.name} a ${newState.players[receiverIdx].name} falló: fondos insuficientes.`;
+                                newState.activityLog.unshift(logMessage);
+                                newState.pendingOffers.splice(offerIndex, 1);
+                                break;
+                            }
+                            newState.players[payerIdx].money -= offer.amount;
+                        }
+
+                        newState.players[receiverIdx].money += offer.amount;
+
+                        logMessage = `${offer.fromName} pagó ${formatCurrency(offer.amount)} a ${offer.toName} por "${offer.description}".`;
+                        newState.activityLog.unshift(logMessage);
+                        newState.pendingOffers.splice(offerIndex, 1);
+                        break;
+                    }
+                    
+                    case 'REJECT_PAYMENT_OFFER': {
+                        const { offerId } = action.payload;
+                        const rejectingPlayerId = action.payload.fromId;
+
+                        const offerIndex = newState.pendingOffers.findIndex(o => o.id === offerId);
+                        if (offerIndex === -1) break;
+
+                        const offer = newState.pendingOffers[offerIndex];
+                        if (offer.toId !== rejectingPlayerId) break;
+
+                        logMessage = `El pago de ${offer.fromName} a ${offer.toName} fue rechazado.`;
+                        newState.activityLog.unshift(logMessage);
+                        newState.pendingOffers.splice(offerIndex, 1);
+                        break;
+                    }
+                    
+                    case 'CREATE_TRADE_OFFER': {
+                        const { fromId } = action.payload;
+                        const { toId, amount, propertiesOffered, propertiesRequested, description } = action.payload;
+                        const fromPlayer = newState.players.find(p => p.id === fromId);
+                        const toPlayer = toId === 'bank' ? { name: 'El Banco', id: 'bank' } : newState.players.find(p => p.id === toId);
+
+                        if (!fromPlayer || !toPlayer) break;
+
+                        const newTrade = {
+                            id: `trade_${Date.now()}_${Math.random()}`,
+                            fromId,
+                            fromName: fromPlayer.name,
+                            toId,
+                            toName: toPlayer.name,
+                            amount,
+                            propertiesOffered,
+                            propertiesRequested,
+                            description,
+                        };
+                        newState.pendingTrades.push(newTrade);
+                        logMessage = `${fromPlayer.name} ha propuesto un intercambio a ${toPlayer.name}.`;
+                        newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+
+                    case 'REJECT_TRADE_OFFER': {
+                        const { tradeId } = action.payload;
+                        const rejectingPlayerId = action.payload.fromId;
+
+                        const tradeIndex = newState.pendingTrades.findIndex(t => t.id === tradeId);
+                        if (tradeIndex === -1) break;
+
+                        const trade = newState.pendingTrades[tradeIndex];
+                        if (trade.toId !== rejectingPlayerId) break;
+
+                        logMessage = `${trade.toName} rechazó la oferta de intercambio de ${trade.fromName}.`;
+                        newState.activityLog.unshift(logMessage);
+                        newState.pendingTrades.splice(tradeIndex, 1);
+                        break;
+                    }
+
+                    case 'ACCEPT_TRADE_OFFER': {
+                        const { tradeId } = action.payload;
+                        const acceptingPlayerId = action.payload.fromId;
+
+                        const tradeIndex = newState.pendingTrades.findIndex(t => t.id === tradeId);
+                        if (tradeIndex === -1) break;
+
+                        const trade = newState.pendingTrades[tradeIndex];
+
+                        if (trade.toId !== acceptingPlayerId) {
+                            logMessage = `Error: Intento de aceptar una oferta no destinada a este jugador.`;
+                            newState.activityLog.unshift(logMessage);
+                            break;
+                        }
+
+                        const fromPlayerIdx = newState.players.findIndex(p => p.id === trade.fromId);
+                        const fromPlayer = fromPlayerIdx !== -1 ? newState.players[fromPlayerIdx] : null;
+
+                        const toPlayerIdx = trade.toId === 'bank' ? -1 : newState.players.findIndex(p => p.id === trade.toId);
+                        const toPlayer = toPlayerIdx !== -1 ? newState.players[toPlayerIdx] : null;
+
+                        let isValid = true;
+                        let failureReason = '';
+
+                        const payer = trade.amount > 0 ? fromPlayer : toPlayer;
+                        const absAmount = Math.abs(trade.amount);
+                        
+                        if (absAmount > 0 && (!payer || payer.money < absAmount)) {
+                            isValid = false;
+                            failureReason = `fondos insuficientes de ${payer?.name}.`;
+                        }
+
+                        if (isValid && fromPlayer) {
+                            const fromPlayerOwnsProps = trade.propertiesOffered.every(propId => {
+                                const prop = newState.properties.find(p => p.id === propId);
+                                return prop?.ownerId === fromPlayer.id && !prop.isMortgaged;
+                            });
+                            if (!fromPlayerOwnsProps) {
+                                isValid = false;
+                                failureReason = `${fromPlayer.name} ya no es dueño de una de las propiedades ofrecidas o está hipotecada.`;
+                            }
+                        }
+
+                        if (isValid && toPlayer) {
+                            const toPlayerOwnsProps = trade.propertiesRequested.every(propId => {
+                                const prop = newState.properties.find(p => p.id === propId);
+                                return prop?.ownerId === toPlayer.id && !prop.isMortgaged;
+                            });
+                            if (!toPlayerOwnsProps) {
+                                isValid = false;
+                                failureReason = `${toPlayer.name} ya no es dueño de una de las propiedades solicitadas o está hipotecada.`;
+                            }
+                        }
+                        
+                        if (isValid) {
+                            if (fromPlayerIdx !== -1 && toPlayerIdx !== -1) {
+                                newState.players[fromPlayerIdx].money -= trade.amount;
+                                newState.players[toPlayerIdx].money += trade.amount;
+                            } else if (fromPlayerIdx !== -1 && trade.toId === 'bank') {
+                                newState.players[fromPlayerIdx].money -= trade.amount;
+                            }
+
+                            trade.propertiesOffered.forEach(propId => {
+                                const pIdx = newState.properties.findIndex(p => p.id === propId);
+                                if (pIdx !== -1) newState.properties[pIdx].ownerId = trade.toId === 'bank' ? null : trade.toId;
+                            });
+                            trade.propertiesRequested.forEach(propId => {
+                                const pIdx = newState.properties.findIndex(p => p.id === propId);
+                                if (pIdx !== -1) newState.properties[pIdx].ownerId = trade.fromId;
+                            });
+
+                            const rentActionPrefix = 'Cobrar alquiler de ';
+                            if (trade.description?.startsWith(rentActionPrefix)) {
+                                logMessage = `${trade.toName} pagó el alquiler a ${trade.fromName}: ${formatCurrency(Math.abs(trade.amount))}.`;
+                            } else {
+                                logMessage = `Intercambio aceptado y completado entre ${trade.fromName} y ${trade.toName}.`;
+                            }
+                        } else {
+                            logMessage = `El intercambio entre ${trade.fromName} y ${trade.toName} falló: ${failureReason}`;
+                        }
+
+                        newState.pendingTrades.splice(tradeIndex, 1);
+                        newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+
+                    case 'APPROVE_REQUEST': {
+                        const { requestId } = action.payload;
+                        const requestIndex = newState.pendingRequests.findIndex(r => r.id === requestId);
+                        if (requestIndex === -1) break;
+
+                        const request = newState.pendingRequests[requestIndex];
+                        newState.pendingRequests.splice(requestIndex, 1);
+                        
+                        const fromPlayerIdx = newState.players.findIndex(p => p.id === request.fromId);
+                        const fromPlayer = fromPlayerIdx !== -1 ? newState.players[fromPlayerIdx] : null;
+
+                        if (!fromPlayer) break;
+
+                        const { requestType } = request;
+
+                        switch(requestType) {
+                            case 'BUILD_HOUSE': {
+                                const { propertyId } = request;
+                                const propIdx = newState.properties.findIndex(p => p.id === propertyId);
+                                if (propIdx === -1) break;
+                                const prop = newState.properties[propIdx];
+
+                                if (prop.group && ['railroad', 'utility'].indexOf(prop.group) === -1) {
+                                    const groupProperties = newState.properties.filter(p => p.group === prop.group && p.ownerId === fromPlayer.id);
+                                    if (groupProperties.length > 0) {
+                                        const minHouses = Math.min(...groupProperties.map(p => p.houses));
+                                        if (prop.houses > minHouses) { logMessage = `Solicitud de construcción en ${prop.name} rechazada: se debe construir de forma pareja en todo el grupo.`; break; }
+                                    }
+                                }
+                                
+                                if (prop.ownerId !== fromPlayer.id || prop.isMortgaged || prop.houses >= 5 || fromPlayer.money < prop.houseCost || !hasMonopoly(fromPlayer.id, prop, newState.properties)) {
+                                   logMessage = `Solicitud de construcción de ${fromPlayer.name} en ${prop.name} rechazada: no cumple los requisitos.`;
+                                } else {
+                                    newState.players[fromPlayerIdx].money -= prop.houseCost;
+                                    newState.properties[propIdx].houses++;
+                                    logMessage = `${fromPlayer.name} construyó ${newState.properties[propIdx].houses === 5 ? 'un hotel' : 'una casa'} en ${prop.name}.`;
+                                }
+                                break;
+                            }
+                            case 'DEMOLISH_BUILDING': {
+                                const { propertyId } = request;
+                                const propIdx = newState.properties.findIndex(p => p.id === propertyId);
+                                if (propIdx === -1) break;
+                                const prop = newState.properties[propIdx];
+                                
+                                if (prop.group && ['railroad', 'utility'].indexOf(prop.group) === -1) {
+                                    const groupProperties = newState.properties.filter(p => p.group === prop.group && p.ownerId === fromPlayer.id);
+                                    if (groupProperties.length > 0) {
+                                        const maxHouses = Math.max(...groupProperties.map(p => p.houses));
+                                        if (prop.houses < maxHouses) { logMessage = `Solicitud para demoler en ${prop.name} rechazada: se debe demoler de forma pareja en todo el grupo.`; break; }
+                                    }
+                                }
+
+                                if (prop.ownerId !== fromPlayer.id || prop.houses === 0) {
+                                    logMessage = `Solicitud para demoler en ${prop.name} de ${fromPlayer.name} rechazada.`;
+                                } else {
+                                    const refund = prop.houseCost / 2;
+                                    newState.players[fromPlayerIdx].money += refund;
+                                    newState.properties[propIdx].houses--;
+                                    logMessage = `${fromPlayer.name} demolió un edificio en ${prop.name} y recibió ${formatCurrency(refund)}.`;
+                                }
+                                break;
+                            }
+                            case 'MORTGAGE_PROPERTY': {
+                                const { propertyId } = request;
+                                const propIdx = newState.properties.findIndex(p => p.id === propertyId);
+                                if (propIdx === -1) break;
+                                const prop = newState.properties[propIdx];
+                                if (prop.ownerId !== fromPlayer.id || prop.isMortgaged || prop.houses > 0) {
+                                    logMessage = `Solicitud para hipotecar ${prop.name} de ${fromPlayer.name} rechazada.`;
+                                } else {
+                                    newState.players[fromPlayerIdx].money += prop.mortgageValue;
+                                    newState.properties[propIdx].isMortgaged = true;
+                                    logMessage = `${fromPlayer.name} hipotecó ${prop.name} por ${formatCurrency(prop.mortgageValue)}.`;
+                                }
+                                break;
+                            }
+                            case 'UNMORTGAGE_PROPERTY': {
+                                const { propertyId } = request;
+                                const propIdx = newState.properties.findIndex(p => p.id === propertyId);
+                                if (propIdx === -1) break;
+                                const prop = newState.properties[propIdx];
+                                const cost = Math.ceil(prop.mortgageValue * 1.1);
+                                if (prop.ownerId !== fromPlayer.id || !prop.isMortgaged || fromPlayer.money < cost) {
+                                     logMessage = `Solicitud para pagar hipoteca de ${prop.name} de ${fromPlayer.name} rechazada.`;
+                                } else {
+                                    newState.players[fromPlayerIdx].money -= cost;
+                                    newState.properties[propIdx].isMortgaged = false;
+                                    logMessage = `${fromPlayer.name} pagó la hipoteca de ${prop.name} por ${formatCurrency(cost)}.`;
+                                }
+                                break;
+                            }
+                        }
+                        if (logMessage) newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+                    case 'REJECT_REQUEST': {
+                        const { requestId } = action.payload;
+                        const requestIndex = newState.pendingRequests.findIndex(r => r.id === requestId);
+                        if (requestIndex === -1) break;
+                        const request = newState.pendingRequests[requestIndex];
+                        
+                        const fromPlayer = newState.players.find(p => p.id === request.fromId);
+                        let rejectionReason = "razones desconocidas";
+                        
+                        if (request.requestType === 'TRADE_REQUEST') {
+                            const { toId, amount } = request;
+                            const toPlayer = newState.players.find(p => p.id === toId);
+                            if (amount > 0 && fromPlayer && fromPlayer.money < amount) rejectionReason = `fondos insuficientes de ${fromPlayer.name}`;
+                            else if (amount < 0 && toPlayer && toPlayer.money < Math.abs(amount)) rejectionReason = `fondos insuficientes de ${toPlayer.name}`;
+                        }
+
+                        newState.pendingRequests.splice(requestIndex, 1);
+                        logMessage = `El Banco rechazó una solicitud de ${request.fromName} por ${rejectionReason}.`;
+                        newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+                    case 'SELL_PROPERTY': {
+                        const { buyerId, propertyId } = action.payload;
+                        const buyerIdx = newState.players.findIndex(p => p.id === buyerId);
+                        const propertyIdx = newState.properties.findIndex(p => p.id === propertyId);
+                        if (buyerIdx === -1 || propertyIdx === -1) break;
+                        
+                        const buyer = newState.players[buyerIdx];
+                        const property = newState.properties[propertyIdx];
+                        
+                        if (property.ownerId || buyer.money < property.price) break;
+
+                        newState.players[buyerIdx].money -= property.price;
+                        newState.properties[propertyIdx].ownerId = buyerId;
+                        logMessage = `${buyer.name} compró ${property.name} por ${formatCurrency(property.price)}.`;
+                        newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+                    case 'BANK_TRANSFER': {
+                        const { playerId, amount } = action.payload;
+                        const playerIdx = newState.players.findIndex(p => p.id === playerId);
+                        if (playerIdx === -1 || !amount || isNaN(amount) || amount >= 0) break;
+                        
+                        const player = newState.players[playerIdx];
+                        player.money += amount;
+                        logMessage = `${player.name} pagó ${formatCurrency(Math.abs(amount))} al Banco.`;
+                        newState.activityLog.unshift(logMessage);
+                        break;
+                    }
+                }
+                
+                broadcastMessage({ type: 'GAME_STATE_UPDATE', payload: newState });
+                return newState;
+            });
+        }, [addLog, broadcastMessage]);
+
+
+        // --- Message Handlers ---
+        const handleDataReceivedAsClient = React.useCallback((message) => {
+          switch (message.type) {
+            case 'LOBBY_UPDATE':
+              setLobby(message.payload);
+              break;
+            case 'GAME_STARTED':
+              setGameState(message.payload);
+              setStatus(ConnectionStatus.IN_GAME);
+              addLog('Game has started!', 'success');
+              break;
+            case 'GAME_STATE_UPDATE':
+              setGameState(message.payload);
+              addLog('Game state updated by host.', 'system');
+              break;
+            case 'ROOM_FULL':
+              addLog('Could not join: The room is full.', 'error');
+              handleLeaveRoom();
+              break;
+            default:
+              addLog(`Received unhandled message type: ${message.type}`, 'system');
+          }
+        }, [addLog, handleLeaveRoom]);
+
+        const handleDataReceivedAsHost = React.useCallback((conn, message) => {
+          switch(message.type) {
+            case 'JOIN_REQUEST': {
+                addLog(`${message.payload.name} is requesting to join.`, 'info');
+
+                if (gameState) {
+                    setGameState(gs => {
+                        let updatedGameState;
+                        const existingPlayer = gs.players.find(p => p.name === message.payload.name);
+
+                        if (existingPlayer) {
+                            addLog(`Reconnecting player: ${message.payload.name}`, 'success');
+                            const oldPlayerId = existingPlayer.id;
+
+                            const newPlayers = gs.players.map(p => p.id === oldPlayerId ? { ...p, id: conn.peer, disconnected: false } : p);
+                            const newProperties = gs.properties.map(prop => prop.ownerId === oldPlayerId ? { ...prop, ownerId: conn.peer } : prop);
+                            const newPendingRequests = gs.pendingRequests.map(req => { let updatedReq = { ...req }; if (req.fromId === oldPlayerId) updatedReq.fromId = conn.peer; if (req.toId === oldPlayerId) updatedReq.toId = conn.peer; return updatedReq; });
+                            const newPendingOffers = (gs.pendingOffers || []).map(o => { let updatedOffer = { ...o }; if (o.fromId === oldPlayerId) updatedOffer.fromId = conn.peer; if (o.toId === oldPlayerId) updatedOffer.toId = conn.peer; return updatedOffer; });
+                            const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldPlayerId) updatedTrade.fromId = conn.peer; if (t.toId === oldPlayerId) updatedTrade.toId = conn.peer; return updatedTrade; });
+
+                            updatedGameState = { ...gs, players: newPlayers, properties: newProperties, pendingRequests: newPendingRequests, pendingOffers: newPendingOffers, pendingTrades: newPendingTrades, activityLog: [`${existingPlayer.name} has reconnected.`, ...gs.activityLog] };
+                        } else {
+                            addLog(`New player joining game: ${message.payload.name}`, 'info');
+                            if (gs.players.filter(p => !p.disconnected).length >= MAX_PLAYERS) { conn.send({ type: 'ROOM_FULL' }); setTimeout(() => conn.close(), 100); return gs; }
+                            const newPlayer = { id: conn.peer, name: message.payload.name, role: 'client', color: PLAYER_COLORS[gs.players.length % PLAYER_COLORS.length], money: INITIAL_MONEY, properties: [], disconnected: false };
+                            updatedGameState = { ...gs, players: [...gs.players, newPlayer], activityLog: [`${newPlayer.name} has joined the game.`, ...gs.activityLog] };
+                        }
+                        
+                        conn.send({ type: 'GAME_STARTED', payload: updatedGameState });
+                        broadcastMessage({ type: 'GAME_STATE_UPDATE', payload: updatedGameState }, conn.peer);
+                        return updatedGameState;
+                    });
+                } else {
+                    setLobby(prevLobby => {
+                        if (prevLobby.players.length >= MAX_PLAYERS) { conn.send({ type: 'ROOM_FULL' }); setTimeout(() => conn.close(), 100); return prevLobby; }
+                        const newPlayer = { id: conn.peer, name: message.payload.name, role: 'client', color: PLAYER_COLORS[prevLobby.players.length] };
+                        const newLobbyState = { ...prevLobby, players: [...prevLobby.players, newPlayer] };
+                        broadcastMessage({ type: 'LOBBY_UPDATE', payload: newLobbyState });
+                        return newLobbyState;
+                    });
+                }
+                break;
+            }
+            case 'GAME_ACTION': {
+                const clientAction = message.payload;
+                const actionWithFromId = { ...clientAction, payload: { ...clientAction.payload, fromId: conn.peer } };
+                processGameAction(actionWithFromId);
+                break;
+            }
+            default:
+              addLog(`Host received unhandled message type: ${message.type}`, 'system');
+          }
+        }, [addLog, broadcastMessage, processGameAction, gameState]);
+
+        // --- Connection Setup ---
+        const setupConnectionListeners = React.useCallback((conn) => {
+          conn.on('data', (data) => {
+            if (role === 'host') {
+                handleDataReceivedAsHost(conn, data);
+            } else {
+                handleDataReceivedAsClient(data);
+            }
+          });
+          conn.on('close', () => {
+            addLog(`Connection with ${conn.peer} closed.`, 'system');
+            if (role === 'host') {
+              connectionsRef.current.delete(conn.peer);
+              const leftPlayer = gameState?.players.find(p => p.id === conn.peer);
+              if (leftPlayer && gameState) {
+                  setGameState(gs => {
+                      const newPlayers = gs.players.map(p => p.id === conn.peer ? { ...p, disconnected: true } : p);
+                      let updatedGameState = { ...gs, players: newPlayers, activityLog: [`${leftPlayer.name} has disconnected.`, ...gs.activityLog] };
+
+                      const offersToCancel = updatedGameState.pendingOffers?.filter(o => o.fromId === conn.peer || o.toId === conn.peer);
+                      if (offersToCancel?.length > 0) {
+                          updatedGameState.pendingOffers = updatedGameState.pendingOffers.filter(o => o.fromId !== conn.peer && o.toId !== conn.peer);
+                          updatedGameState.activityLog.unshift(...offersToCancel.map(o => `Oferta entre ${o.fromName} y ${o.toName} cancelada por desconexión.`));
+                      }
+                      
+                       const tradesToCancel = updatedGameState.pendingTrades?.filter(t => t.fromId === conn.peer || t.toId === conn.peer);
+                       if (tradesToCancel?.length > 0) {
+                           updatedGameState.pendingTrades = updatedGameState.pendingTrades.filter(t => t.fromId !== conn.peer && t.toId !== conn.peer);
+                           updatedGameState.activityLog.unshift(...tradesToCancel.map(t => `Intercambio entre ${t.fromName} y ${t.toName} cancelado por desconexión.`));
+                       }
+
+                      broadcastMessage({ type: 'GAME_STATE_UPDATE', payload: updatedGameState });
+                      return updatedGameState;
+                  });
+              }
+            } else {
+              addLog('Disconnected from host. The game will be restored if you rejoin.', 'error');
+              setStatus(ConnectionStatus.DISCONNECTED);
+            }
+          });
+          conn.on('error', (err) => addLog(`Connection error with ${conn.peer}: ${err.message}`, 'error'));
+        }, [role, addLog, broadcastMessage, handleLeaveRoom, handleDataReceivedAsClient, handleDataReceivedAsHost, gameState]);
+        
+        // Load session from localStorage on initial mount
+        React.useEffect(() => {
+            try {
+                const savedSessionJSON = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedSessionJSON) {
+                    addLog('Restoring previous session...', 'system');
+                    const savedSession = JSON.parse(savedSessionJSON);
+                    
+                    if (savedSession.playerName) {
+                        setPlayerName(savedSession.playerName);
+                    }
+
+                    // ONLY restore game state if the role is explicitly 'host'
+                    if (savedSession.role === 'host' && savedSession.gameState) {
+                        setRole('host');
+                        const restoredGameState = {
+                            ...savedSession.gameState,
+                            players: savedSession.gameState.players.map(p => 
+                                p.role !== 'host' ? { ...p, disconnected: true } : { ...p, disconnected: false }
+                            )
+                        };
+                        setGameState(restoredGameState);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to parse saved session:", error);
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+            } finally {
+                setIsLoadingSession(false);
+            }
+        }, [addLog]);
+
+        // Save session state whenever it changes
+        React.useEffect(() => {
+            if (isLoadingSession) return;
+            try {
+                let sessionData = {
+                    playerName,
+                };
+
+                if (role === 'host') {
+                    sessionData.role = 'host';
+                    sessionData.gameState = gameState;
+                }
+                // If role is 'client' or null, we only save playerName, which is already in the object.
+                // This correctly overwrites any previous host data if a user switches roles or leaves a room.
+                
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sessionData));
+            } catch (error) {
+                addLog('Failed to save session state.', 'error');
+            }
+        }, [role, playerName, gameState, isLoadingSession, addLog]);
+
+        // Initialize PeerJS - runs only once
+        React.useEffect(() => {
+          if (peerRef.current || !handleLeaveRoom) return;
+          addLog('Connecting to signaling server...', 'system');
+          setStatus(ConnectionStatus.CONNECTING);
+          const peer = new Peer({ host: PEER_SERVER_HOST, port: PEER_SERVER_PORT, path: '/peerjs', secure: true, debug: 0 });
+          peerRef.current = peer;
+
+          peer.on('open', (id) => {
+            addLog(`Connected! Your ID: ${id}`, 'success');
+            setPeerId(id);
+            setStatus(ConnectionStatus.CONNECTED);
+          });
+
+          peer.on('error', (err) => {
+            addLog(`PeerJS error: ${err.type}`, 'error');
+            if (err.type === 'peer-unavailable') { handleLeaveRoom(); } 
+            else { setStatus(ConnectionStatus.ERROR); }
+          });
+          peer.on('disconnected', () => addLog('Disconnected from signaling. Reconnecting...', 'system'));
+          return () => { if (peer && !peer.destroyed) { peer.destroy(); } };
+        }, [addLog, handleLeaveRoom]);
+
+        // Host Session Restoration Logic
+        React.useEffect(() => {
+            if (isLoadingSession || !peerId || role !== 'host' || !gameState || status === ConnectionStatus.IN_GAME) return;
+
+            addLog('Restoring host session...', 'system');
+            const oldHostId = gameState.players.find(p => p.role === 'host')?.id;
+
+            if (oldHostId && oldHostId !== peerId) {
+                addLog(`Host reconnected with new ID. Updating from ${oldHostId} to ${peerId}.`, 'system');
+                setGameState(gs => {
+                    const newPlayers = gs.players.map(p => p.id === oldHostId ? { ...p, id: peerId, disconnected: false } : p);
+                    const newProperties = gs.properties.map(prop => prop.ownerId === oldHostId ? { ...prop, ownerId: peerId } : prop);
+                    const newPendingRequests = gs.pendingRequests.map(req => { let updatedReq = { ...req }; if (req.fromId === oldHostId) updatedReq.fromId = conn.peer; if (req.toId === oldHostId) updatedReq.toId = conn.peer; return updatedReq; });
+                    const newPendingOffers = (gs.pendingOffers || []).map(o => { let updatedOffer = { ...o }; if (o.fromId === oldHostId) updatedOffer.fromId = conn.peer; if (o.toId === oldHostId) updatedOffer.toId = conn.peer; return updatedOffer; });
+                    const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldHostId) updatedTrade.fromId = conn.peer; if (t.toId === oldHostId) updatedTrade.toId = conn.peer; return updatedTrade; });
+                    
+                    const updatedGameState = { ...gs, players: newPlayers, properties: newProperties, pendingRequests: newPendingRequests, pendingOffers: newPendingOffers, pendingTrades: newPendingTrades };
+
+                    setLobby({ players: updatedGameState.players.map(p => ({ id: p.id, name: p.name, role: p.role, color: p.color })), roomCode: peerId });
+                    return updatedGameState;
+                });
+            } else {
+                setLobby({ players: gameState.players.map(p => ({ id: p.id, name: p.name, role: p.role, color: p.color })), roomCode: peerId });
+            }
+            setStatus(ConnectionStatus.IN_GAME);
+        }, [peerId, role, gameState, isLoadingSession, addLog, status]);
+        
+        // Host connection listener
+        React.useEffect(() => {
+          const peer = peerRef.current;
+          if (!peer || role !== 'host') return;
+
+          const handleConnection = (conn) => {
+            addLog(`Incoming connection from ${conn.peer}`, 'info');
+            conn.on('open', () => {
+              addLog(`Data connection established with ${conn.peer}`, 'success');
+              connectionsRef.current.set(conn.peer, conn);
+              setupConnectionListeners(conn);
+            });
+          };
+
+          peer.on('connection', handleConnection);
+          return () => { if (peer && !peer.destroyed) peer.off('connection', handleConnection); };
+        }, [role, addLog, setupConnectionListeners]);
+
+        // --- UI Actions ---
+        const handleCreateRoom = () => {
+          if (!playerName.trim()) { addLog('Please enter a name.', 'error'); return; }
+          setRole('host');
+          setStatus(ConnectionStatus.IN_LOBBY);
+          const hostPlayer = { id: peerId, name: playerName, role: 'host', color: PLAYER_COLORS[0] };
+          setLobby({ players: [hostPlayer], roomCode: peerId });
+          addLog(`Room created. You are the host. Room Code: ${peerId}`, 'success');
+        };
+
+        const joinRoomByCode = (code) => {
+          if (!playerName.trim()) { addLog('Please enter a name.', 'error'); return; }
+          if (!code) { addLog('Please enter a room code.', 'error'); return; }
+          if (code === peerId) { addLog('You cannot join your own room.', 'error'); return; }
+          
+          addLog(`Attempting to join room: ${code}`, 'info');
+          setRole('client');
+          const conn = peerRef.current.connect(code, { reliable: true });
+          conn.on('open', () => {
+            addLog(`Connected to host: ${code}`, 'success');
+            setStatus(ConnectionStatus.IN_LOBBY);
+            connectionsRef.current.set(code, conn);
+            setupConnectionListeners(conn);
+            conn.send({ type: 'JOIN_REQUEST', payload: { name: playerName } });
+          });
+        };
+        
+        const handleStartGame = () => {
+            if (gameState) {
+                setStatus(ConnectionStatus.IN_GAME);
+                addLog('Resuming existing game...', 'success');
+                broadcastMessage({ type: 'GAME_STARTED', payload: gameState });
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({ role, playerName, gameState, roomCode: peerId }));
+                return;
+            }
+
+            if (lobby.players.length < 2) { addLog('Cannot start game: At least 2 players are required.', 'error'); return; }
+
+            addLog('Starting a new game...', 'success');
+            const initialProperties = propertiesData.map(p => ({ ...p, ownerId: null, houses: 0, isMortgaged: false }));
+            const initialGameState = {
+                players: lobby.players.map(player => ({ ...player, money: INITIAL_MONEY, properties: [], disconnected: false })),
+                properties: initialProperties,
+                pendingRequests: [],
+                pendingOffers: [],
+                pendingTrades: [],
+                activityLog: [`Game started with ${lobby.players.length} players.`, `Host: ${playerName}`],
+            };
+            
+            setGameState(initialGameState);
+            setStatus(ConnectionStatus.IN_GAME);
+            broadcastMessage({ type: 'GAME_STARTED', payload: initialGameState });
+        };
+        
+        const handleScanSuccess = (decodedText) => {
+          addLog(`QR Code scanned successfully`, 'success');
+          setLobby(prev => ({...prev, roomCode: decodedText}));
+          setIsScannerVisible(false);
+          setTimeout(() => joinRoomByCode(decodedText), 100);
+        };
+
+        const handleActionRequest = (action) => {
+            if (role === 'host') {
+                const payload = action.payload.fromId ? action.payload : { ...action.payload, fromId: peerId };
+                processGameAction({ ...action, payload });
+            } else {
+                sendToHost({ type: 'GAME_ACTION', payload: action });
+            }
+        };
+        
+        // --- RENDER LOGIC ---
+        const renderContent = () => {
+          if (isLoadingSession) { return React.createElement('div', { className: "text-center flex items-center space-x-2" }, React.createElement('div', { className: "w-4 h-4 border-2 border-dashed rounded-full animate-spin border-slate-400" }), React.createElement('span', null, "Restoring session...")); }
+          if (status === ConnectionStatus.ERROR) return React.createElement('div', { className: "text-center text-red-400" }, "Failed to connect. Check server status and refresh.");
+          
+          if (status === ConnectionStatus.IN_GAME && gameState) {
+              return React.createElement(GameScreen, {
+                gameState: gameState, peerId: peerId, role: role, 
+                handleActionRequest: handleActionRequest, handleLeaveRoom: handleLeaveRoom
+              });
+          }
+
+          if (status === ConnectionStatus.CONNECTED || status === ConnectionStatus.IN_LOBBY || (status === ConnectionStatus.IN_GAME && !gameState)) {
+            return React.createElement(LobbyScreen, {
+              playerName: playerName, setPlayerName: setPlayerName, role: role, peerId: peerId, 
+              handleCreateRoom: handleCreateRoom, lobby: lobby, setLobby: setLobby, joinRoomByCode: joinRoomByCode, 
+              setIsScannerVisible: setIsScannerVisible, handleLeaveRoom: handleLeaveRoom, 
+              handleStartGame: handleStartGame, gameState: gameState
+            });
+          }
+          
+          return React.createElement('div', { className: "text-center flex items-center space-x-2" }, React.createElement('div', { className: "w-4 h-4 border-2 border-dashed rounded-full animate-spin border-slate-400" }), React.createElement('span', null, "Connecting..."));
+        };
+
+        return (
+          React.createElement('div', { className: "min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center p-0 sm:p-4 font-sans" },
+            isScannerVisible && React.createElement(QrScanner, { onScanSuccess: handleScanSuccess, onCancel: () => setIsScannerVisible(false) }),
+            React.createElement('div', { className: "w-full max-w-7xl mx-auto bg-slate-800/50 rounded-xl shadow-2xl flex flex-col" },
+              React.createElement('header', { className: "p-4 border-b border-slate-700 flex justify-between items-center" },
+                React.createElement('div', { className: "flex items-center gap-3" },
+                  React.createElement('span', { className: "text-2xl" }, "🏦"),
+                  React.createElement('h1', { className: "text-xl font-bold" }, "Bancopolio Digital")
+                ),
+                React.createElement(StatusIndicator, { status: status })
+              ),
+              React.createElement('main', { className: "p-4 sm:p-6 flex-grow flex items-center justify-center" },
+                renderContent()
+              )
+            )
+          )
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

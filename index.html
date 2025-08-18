@@ -81,11 +81,42 @@
       ];
 
       const propertyGroupColors = {
-          brown: '#955436', lightblue: '#aae0fa', pink: '#d93a96', orange: '#f7941d',
+          brown: '#955436', lightblue: '#00AEEF', pink: '#d93a96', orange: '#F7941D',
           red: '#ed1b24', yellow: '#fef200', green: '#1fb25a', blue: '#0072bb',
           railroad: '#808285', utility: '#F0E68C'
       };
 
+       // --- NEW DESIGN ASSETS ---
+      const propertyGroupImages = {
+          green: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadverde.png',
+          orange: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadnaranja.png',
+          lightblue: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadceleste.png',
+          // Repeating for other groups as requested
+          brown: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadnaranja.png',
+          pink: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadceleste.png',
+          red: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadnaranja.png',
+          yellow: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadnaranja.png',
+          blue: 'https://contactoiut.github.io/sonidos/imagenes/encabezadopropiedadceleste.png',
+      };
+      
+      const propertyGroupLightColors = {
+          green: '#e6f4ea', orange: '#fff0db', lightblue: '#e3f2fd', brown: '#d7ccc8',
+          pink: '#fce4ec', red: '#ffebee', yellow: '#fff9c4', blue: '#e3f2fd',
+          default: '#f8fafc'
+      };
+
+      const rentShades = {
+          green:     ['#8f9a5b', '#7c884b', '#69763d', '#566232', '#434d27'],
+          orange:    ['#f6ad55', '#f6993f', '#f1882d', '#dd6b20', '#c05621'],
+          lightblue: ['#a3d5f7', '#7fc2f0', '#5baee9', '#3182ce', '#2b6cb0'],
+          brown:     ['#c08a5e', '#a1683c', '#8a562d', '#824d22', '#633710'],
+          pink:      ['#f4abc4', '#ec87ab', '#e36492', '#d84379', '#c52860'],
+          red:       ['#f26b6b', '#e84c4c', '#d92b2b', '#c21a1a', '#a50f0f'],
+          yellow:    ['#f6e05e', '#ecc94b', '#d69e2e', '#b7791f', '#975a16'],
+          blue:      ['#667eea', '#5a67d8', '#4c51bf', '#434190', '#3c366b'],
+          default:   ['#a0aec0', '#8b9cb0', '#718096', '#596576', '#4a5568']
+      };
+      
       // --- UTILS ---
       const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(amount);
       const hasMonopoly = (playerId, property, allProperties) => {
@@ -308,11 +339,66 @@
           const getDemolishDisabledReason = () => { if (property.houses === 0) return "No hay edificios para demoler."; if (!canDemolishEvenly) return "Debes demoler de forma pareja en todo el grupo."; return `Vender por ${formatCurrency(property.houseCost / 2)}`; };
           
           const renderCardContent = () => {
-              const mortgageOverlay = property.isMortgaged ? React.createElement('div', { className: "absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-10 pointer-events-none" }, React.createElement('span', { className: "text-red-600 text-4xl sm:text-5xl font-black uppercase tracking-widest transform -rotate-12 border-4 border-red-600 px-4 py-2 bg-black/20" }, "Hipotecado")) : null;
+              const mortgageOverlay = property.isMortgaged ? React.createElement('div', { className: "absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center z-10 pointer-events-none" }, React.createElement('span', { className: "text-red-600 text-4xl sm:text-5xl font-black uppercase tracking-widest transform -rotate-12 border-4 border-red-600 px-4 py-2 bg-black/20" }, "Hipotecado")) : null;
               switch(propertyType) {
                   case 'railroad': return React.createElement('div', { className: "relative bg-slate-300 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('h4', { className: "text-2xl font-bold" }, property.name)), React.createElement('div', { className: "text-center space-y-1 py-2 text-sm" }, React.createElement('p', null, `Si se posee 1 Ferrocarril: ${formatCurrency(property.rent[0])}`), React.createElement('p', null, `Si se poseen 2 Ferrocarriles: ${formatCurrency(property.rent[1])}`), React.createElement('p', null, `Si se poseen 3 Ferrocarriles: ${formatCurrency(property.rent[2])}`), React.createElement('p', null, `Si se poseen 4 Ferrocarriles: ${formatCurrency(property.rent[3])}`), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`)));
                   case 'utility': return React.createElement('div', { className: "relative bg-slate-300 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group], color: getTextColorForBg(propertyGroupColors[property.group]) }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('h4', { className: "text-2xl font-bold" }, property.name)), React.createElement('div', { className: "text-center space-y-2 py-3 px-2 text-sm" }, React.createElement('p', null, "Si se posee una 'Compañía', el alquiler es ", React.createElement('span', { className: "font-bold" }, property.rent[0]), " veces el valor de los dados."), React.createElement('p', null, "Si se poseen las dos 'Compañías', el alquiler es ", React.createElement('span', { className: "font-bold" }, property.rent[1]), " veces el valor de los dados."), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`)));
-                  case 'street': default: const ownerHasMonopoly = hasMonopoly(property.ownerId, property, gameState.properties); return React.createElement('div', { className: "relative bg-amber-100 text-black rounded-lg p-4 shadow-inner" }, mortgageOverlay, React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "p-2 text-center rounded-t-md border-b-4 border-black" }, React.createElement('p', { className: "text-xs uppercase" }, "Título de Propiedad"), React.createElement('h4', { className: "text-xl font-bold" }, property.name), React.createElement('div', { className: "flex justify-center items-center gap-1 h-7 text-2xl" }, property.houses > 0 && property.houses < 5 && Array.from({length: property.houses}).map((_, i) => React.createElement('span', { key: i, title: "House" }, "🏠")), property.houses === 5 && React.createElement('span', { title: "Hotel" }, "🏨"))), React.createElement('div', { className: "text-center space-y-1 py-2 text-sm" }, React.createElement('p', null, `Alquiler ${formatCurrency(property.rent[0])}`), ownerHasMonopoly && property.houses === 0 && React.createElement('p', { className: "font-bold text-green-700" }, "El alquiler del solar se duplica"), React.createElement('p', null, `Con 1 Casa: ${formatCurrency(property.rent[1])}`), React.createElement('p', null, `Con 2 Casas: ${formatCurrency(property.rent[2])}`), React.createElement('p', null, `Con 3 Casas: ${formatCurrency(property.rent[3])}`), React.createElement('p', null, `Con 4 Casas: ${formatCurrency(property.rent[4])}`), React.createElement('p', { className: "font-bold" }, `Con HOTEL: ${formatCurrency(property.rent[5])}`), React.createElement('hr', { className: "my-2 border-gray-400" }), React.createElement('p', null, `Valor de la hipoteca: ${formatCurrency(property.mortgageValue)}`), React.createElement('p', null, `Coste de las casas: ${formatCurrency(property.houseCost)} c/u`), React.createElement('p', null, `Los hoteles cuestan ${formatCurrency(property.houseCost)} más 4 casas`)));
+                  case 'street': default:
+                    const ownerHasMonopoly = hasMonopoly(property.ownerId, property, gameState.properties);
+                    const getRentLabel = (i) => {
+                        const monopolyText = (i === 0 && ownerHasMonopoly) ? ' (x2 con monopolio)' : '';
+                        if (i === 0) return `Alquiler${monopolyText}`;
+                        if (i === 5) return React.createElement('span', { className: 'font-bold' }, `CON HOTEL`);
+                        return `Con ${i} edificio${i > 1 ? 's' : ''}`;
+                    };
+                    const getLeftArrowColor = (i, group) => {
+                        const shades = rentShades[group] || rentShades.default;
+                        return (i === 5) ? '#ed1b24' : shades[i];
+                    };
+
+                    const arrowWidthPercentages = [65, 72, 79, 86, 93, 100];
+                    
+                    const RentRow = ({ i, rentValue }) => {
+                        const isCurrentLevel = property.houses === i;
+                        const widthPercent = arrowWidthPercentages[i];
+                        const clipPathStyle = `polygon(0% 0%, 90% 0%, 100% 50%, 90% 100%, 0% 100%)`;
+
+                        return React.createElement('div', { className: 'flex items-center gap-1.5' },
+                            React.createElement('div', { className: 'flex-grow flex justify-start items-center' },
+                                React.createElement('div', {
+                                    className: 'px-2 py-1.5 text-xs sm:text-sm font-bold text-white text-left truncate',
+                                    style: {
+                                        width: `${widthPercent}%`,
+                                        clipPath: clipPathStyle,
+                                        backgroundColor: getLeftArrowColor(i, property.group)
+                                    }
+                                }, getRentLabel(i))
+                            ),
+                            React.createElement('div', {
+                                className: 'w-1/3 px-2 py-1.5 text-xs sm:text-sm font-bold text-center',
+                                style: {
+                                    clipPath: 'polygon(10% 0%, 100% 0%, 100% 100%, 10% 100%, 0% 50%)',
+                                    backgroundColor: isCurrentLevel ? '#1a202c' : '#d1d5db',
+                                    color: isCurrentLevel ? 'white' : 'black'
+                                }
+                            }, formatCurrency(rentValue))
+                        );
+                    };
+
+                    return React.createElement('div', { className: "relative aspect-[5/6] w-full max-w-sm mx-auto" },
+                      mortgageOverlay,
+                      React.createElement('div', { className: "w-full h-full rounded-xl shadow-inner flex overflow-hidden" },
+                        React.createElement('div', { className: "w-1/4 h-full flex items-center justify-center p-1", style: { backgroundColor: propertyGroupColors[property.group] } },
+                          React.createElement('h4', { className: "text-white font-bold text-2xl sm:text-3xl uppercase", style: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', textShadow: '1px 1px 3px rgba(0,0,0,0.7)' } }, property.name)
+                        ),
+                        React.createElement('div', { className: "w-3/4 h-full flex flex-col", style: { backgroundColor: propertyGroupLightColors[property.group] || propertyGroupLightColors.default } },
+                          propertyGroupImages[property.group] && React.createElement('div', { className: "h-1/3 w-full bg-cover bg-center", style: { backgroundImage: `url(${propertyGroupImages[property.group]})` } }),
+                          React.createElement('div', { className: "flex-grow p-2 sm:p-3 space-y-1.5 flex flex-col justify-center" },
+                            ...property.rent.map((rent, i) => React.createElement(RentRow, { key: i, i, rentValue: (i===0 && ownerHasMonopoly) ? rent*2 : rent }))
+                          )
+                        )
+                      )
+                    );
               }
           }
 
@@ -539,7 +625,6 @@
                     const isRentCollection = trade.description?.startsWith('Cobrar alquiler de ');
 
                     if (isRentCollection) {
-                        const propertyName = trade.description.substring('Cobrar alquiler de '.length);
                         return React.createElement('div', { key: trade.id, className: "text-white" },
                             React.createElement('h4', { className: "font-bold text-red-400" }, "Cobro de Alquiler"),
                             React.createElement('p', { className: "text-sm mt-1" }, 

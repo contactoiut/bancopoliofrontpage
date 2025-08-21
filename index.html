@@ -1671,8 +1671,8 @@
                   });
               }
             } else {
-              addLog('Disconnected from host. The game will be restored if you rejoin.', 'error');
-              setStatus(ConnectionStatus.DISCONNECTED);
+              addLog('Se ha desconectado del anfitrión. Volviendo a la pantalla de inicio.', 'error');
+              handleLeaveRoom();
             }
           });
           conn.on('error', (err) => addLog(`Connection error with ${conn.peer}: ${err.message}`, 'error'));
@@ -1756,10 +1756,10 @@
 
         // Host Session Restoration Logic
         React.useEffect(() => {
+            // This hook now prepares the lobby for a restored session without auto-starting the game.
             if (isLoadingSession || !peerId || role !== 'host' || !gameState || status === ConnectionStatus.IN_GAME) return;
 
-            addLog('Restoring host session...', 'system');
-            setCurrentView('game');
+            addLog('Restoring host session, waiting in lobby...', 'system');
             const oldHostId = gameState.players.find(p => p.role === 'host')?.id;
 
             if (oldHostId && oldHostId !== peerId) {
@@ -1767,9 +1767,10 @@
                 setGameState(gs => {
                     const newPlayers = gs.players.map(p => p.id === oldHostId ? { ...p, id: peerId, disconnected: false } : p);
                     const newProperties = gs.properties.map(prop => prop.ownerId === oldHostId ? { ...prop, ownerId: peerId } : prop);
-                    const newPendingRequests = gs.pendingRequests.map(req => { let updatedReq = { ...req }; if (req.fromId === oldHostId) updatedReq.fromId = conn.peer; if (req.toId === oldHostId) updatedReq.toId = conn.peer; return updatedReq; });
-                    const newPendingOffers = (gs.pendingOffers || []).map(o => { let updatedOffer = { ...o }; if (o.fromId === oldHostId) updatedOffer.fromId = conn.peer; if (o.toId === oldHostId) updatedOffer.toId = conn.peer; return updatedOffer; });
-                    const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldHostId) updatedTrade.fromId = conn.peer; if (t.toId === oldHostId) updatedTrade.toId = conn.peer; return updatedTrade; });
+                    
+                    const newPendingRequests = gs.pendingRequests.map(req => { let updatedReq = { ...req }; if (req.fromId === oldHostId) updatedReq.fromId = peerId; if (req.toId === oldHostId) updatedReq.toId = peerId; return updatedReq; });
+                    const newPendingOffers = (gs.pendingOffers || []).map(o => { let updatedOffer = { ...o }; if (o.fromId === oldHostId) updatedOffer.fromId = peerId; if (o.toId === oldHostId) updatedOffer.toId = peerId; return updatedOffer; });
+                    const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldHostId) updatedTrade.fromId = peerId; if (t.toId === oldHostId) updatedTrade.toId = peerId; return updatedTrade; });
                     
                     const updatedGameState = { ...gs, players: newPlayers, properties: newProperties, pendingRequests: newPendingRequests, pendingOffers: newPendingOffers, pendingTrades: newPendingTrades };
 
@@ -1779,7 +1780,7 @@
             } else {
                 setLobby({ players: gameState.players.map(p => ({ id: p.id, name: p.name, role: p.role, color: p.color })), roomCode: peerId });
             }
-            setStatus(ConnectionStatus.IN_GAME);
+            setStatus(ConnectionStatus.IN_LOBBY);
         }, [peerId, role, gameState, isLoadingSession, addLog, status]);
         
         // Host connection listener

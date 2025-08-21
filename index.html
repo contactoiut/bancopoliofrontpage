@@ -51,7 +51,7 @@
       };
 
       const defaultPropertiesData = [
-        { id: 'corner-go', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
+        { id: 'corner-go', name: 'Esquina', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'brown1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'chest-1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'brown2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
@@ -61,7 +61,7 @@
         { id: 'chance-1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'lightblue2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'lightblue3', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
-        { id: 'corner-jail', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
+        { id: 'corner-jail', name: 'Esquina', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'pink1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'utility1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'pink2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
@@ -71,7 +71,7 @@
         { id: 'chest-2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'orange2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'orange3', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
-        { id: 'corner-parking', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
+        { id: 'corner-parking', name: 'Esquina', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'red1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'chance-2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'red2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
@@ -81,7 +81,7 @@
         { id: 'yellow2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'utility2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'yellow3', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
-        { id: 'corner-go-to-jail', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
+        { id: 'corner-go-to-jail', name: 'Esquina', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'green1', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'green2', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
         { id: 'chest-3', name: 'Vacío', group: 'vacio', price: 0, rent: [], houseCost: 0, mortgageValue: 0 },
@@ -211,7 +211,7 @@
             const [requestedProperties, setRequestedProperties] = React.useState(new Set());
 
             const myProperties = gameState.properties.filter(p => p.ownerId === me.id && !p.isMortgaged);
-            const targetProperties = targetId !== 'bank' ? gameState.properties.filter(p => p.ownerId === targetId && !p.isMortgaged) : [];
+            const targetProperties = targetId !== 'bank' ? gameState.properties.filter(p => p.ownerId === targetId && !p.isMortgaged) : gameState.properties.filter(p => !p.ownerId && p.group !== 'vacio' && !p.isMortgaged);
 
             React.useEffect(() => { setRequestedProperties(new Set()); }, [targetId]);
 
@@ -229,7 +229,7 @@
                 
                 const targetPlayer = gameState.players.find(p => p.id === targetId);
 
-                if (numAmount < 0 && targetPlayer && targetPlayer.money < Math.abs(numAmount)) { alert(`${targetPlayer.name} no tiene suficientes fondos para este cobro.`); return; }
+                if (numAmount < 0 && targetId !== 'bank' && targetPlayer && targetPlayer.money < Math.abs(numAmount)) { alert(`${targetPlayer.name} no tiene suficientes fondos para este cobro.`); return; }
                 if (numAmount > 0 && me.money < numAmount) { alert(`No tienes suficientes fondos para este pago.`); return; }
                 
                 onAction({ 
@@ -281,7 +281,7 @@
                             React.createElement('input', { type: "number", id: "amount", value: amount, onChange: e => setAmount(e.target.value), placeholder: "Ej: 100 para pagar, -100 para cobrar", className: "w-full p-2 rounded-md bg-slate-700 border border-slate-600" })
                         ),
                         React.createElement(PropertyCheckboxList, { title: "Tus propiedades a ofrecer:", properties: myProperties, selected: offeredProperties, onToggle: (id) => handlePropToggle(id, offeredProperties, setOfferedProperties) }),
-                        targetId !== 'bank' && React.createElement(PropertyCheckboxList, { title: "Sus propiedades a solicitar:", properties: targetProperties, selected: requestedProperties, onToggle: (id) => handlePropToggle(id, requestedProperties, setRequestedProperties) }),
+                        React.createElement(PropertyCheckboxList, { title: `${targetId === 'bank' ? 'Propiedades del banco' : 'Sus propiedades'} a solicitar:`, properties: targetProperties, selected: requestedProperties, onToggle: (id) => handlePropToggle(id, requestedProperties, setRequestedProperties) }),
                         React.createElement('button', { type: "submit", className: "w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition" }, "Enviar Oferta")
                     )
                 )
@@ -565,6 +565,7 @@
         };
 
       const BoardSummaryCard = ({ properties, players, onPropertyClick }) => {
+            const [rotation, setRotation] = React.useState(0);
             const netWorthData = React.useMemo(() => {
                 if (!players) return { playersWithNetWorth: [], totalNetWorth: 1 };
                 const playersWithNetWorth = players.map(player => {
@@ -584,43 +585,49 @@
                 'green1', 'green2', 'chest-3', 'green3', 'railroad4', 'chance-3', 'blue1', 'tax-luxury', 'blue2'
             ];
             
-            const getPosition = (index) => { if (index <= 10) return { gridRow: 11, gridColumn: 11 - index }; if (index <= 20) return { gridRow: 11 - (index - 10), gridColumn: 1 }; if (index <= 30) return { gridRow: 1, gridColumn: 1 + (index - 20) }; if (index <= 39) return { gridRow: 1 + (index - 30), gridColumn: 11 }; return {}; };
+            const getPosition = (index) => { if (index < 10) return { gridRow: 11, gridColumn: 11 - index }; if (index === 10) return { gridRow: 11, gridColumn: 1 }; if (index < 20) return { gridRow: 11 - (index - 10), gridColumn: 1 }; if (index === 20) return { gridRow: 1, gridColumn: 1 }; if (index < 30) return { gridRow: 1, gridColumn: 1 + (index - 20) }; if (index === 30) return { gridRow: 1, gridColumn: 11 }; if (index < 40) return { gridRow: 1 + (index - 30), gridColumn: 11 }; return {}; };
 
-            const renderBoardCell = (boardId) => {
+            const renderBoardCell = (boardId, index) => {
                 const property = properties.find(p => p.id === boardId);
                 if (!property) return React.createElement('div', { className: 'w-full h-full', title: boardId });
+                
+                const isInGame = !!players;
+                if (isInGame && property.group === 'vacio') {
+                    return React.createElement('div', { className: 'w-full h-full' });
+                }
 
                 const owner = players ? players.find(p => p.id === property.ownerId) : null;
                 const isClickable = !!onPropertyClick;
-                const isInGame = !!players;
-                const isVacioInGame = isInGame && property.group === 'vacio';
 
                 const handleClick = () => {
-                    if (isVacioInGame) return;
                     if (isClickable) {
                         onPropertyClick(property);
                     }
                 };
 
-                if (property.group === 'vacio') {
-                    const dynamicClasses = isVacioInGame 
-                        ? '' 
-                        : 'bg-slate-300 cursor-pointer hover:ring-2 hover:ring-teal-400 z-10';
-                    
-                    return React.createElement('div', { 
-                        onClick: handleClick, 
-                        className: `w-full h-full ${dynamicClasses}`, 
-                        title: property.name 
-                    });
+                const isBottomRow = index >= 0 && index <= 10;
+                const isLeftColumn = index > 10 && index < 20; // Exclude top-left corner
+                const isTopRow = index > 20 && index < 30;
+                const isRightColumn = index >= 30 && index < 40;
+
+                let flexClass = 'flex-col'; // Default for Top Row and Top-Left corner
+                if (isBottomRow) {
+                    flexClass = 'flex-col-reverse';
+                } else if (isLeftColumn) {
+                    flexClass = 'flex-row';
+                } else if (isRightColumn) {
+                    flexClass = 'flex-row-reverse';
                 }
+                
+                const isVertical = isLeftColumn || isRightColumn;
                 
                 return React.createElement('div', { 
                     onClick: handleClick, 
                     className: `w-full h-full ${isClickable ? 'cursor-pointer hover:ring-2 hover:ring-teal-400 z-10' : ''}`, 
                     title: property.isMortgaged ? `${property.name} (Congelado)` : property.name 
                 },
-                    React.createElement('div', { className: `w-full h-full flex flex-col justify-start items-center relative bg-slate-200 ${property.isMortgaged ? 'grayscale' : ''}` },
-                        React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: "h-1/4 w-full" }),
+                    React.createElement('div', { className: `w-full h-full flex ${flexClass} justify-start items-center relative bg-slate-200 ${property.isMortgaged ? 'grayscale' : ''}` },
+                        React.createElement('div', { style: { backgroundColor: propertyGroupColors[property.group] }, className: `${isVertical ? 'h-full w-1/4' : 'h-1/4 w-full'}` }),
                         owner && !owner.disconnected && React.createElement('div', { style: { backgroundColor: owner.color, border: '1px solid white' }, className: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full shadow-md" })
                     )
                 );
@@ -628,8 +635,19 @@
             
             return (
                 React.createElement('div', { className: "bg-slate-800 rounded-lg p-4 shadow-lg flex flex-col" },
-                    React.createElement('h3', { className: "text-xl font-bold mb-3" }, "Resumen del Tablero"),
-                    React.createElement('div', { className: "grid grid-cols-11 grid-rows-11 gap-0.5 aspect-square bg-slate-700 border-2 border-slate-600 p-1" }, fullBoardOrder.map((boardId, index) => React.createElement('div', { key: boardId + '-' + index, style: { gridRowStart: getPosition(index).gridRow, gridColumnStart: getPosition(index).gridColumn } }, renderBoardCell(boardId)))),
+                    React.createElement('div', { className: "flex justify-between items-center mb-3" },
+                        React.createElement('h3', { className: "text-xl font-bold" }, "Resumen del Tablero"),
+                        React.createElement('button', {
+                            onClick: () => setRotation(prev => (prev + 90) % 360),
+                            className: "bg-slate-700 hover:bg-slate-600 text-white font-bold p-2 rounded-full transition-transform duration-300 ease-in-out hover:rotate-90",
+                            title: "Girar Tablero",
+                            'aria-label': "Girar Tablero"
+                        }, '🔄')
+                    ),
+                    React.createElement('div', {
+                        className: "grid grid-cols-11 grid-rows-11 gap-0.5 aspect-square bg-slate-700 border-2 border-slate-600 p-1 transition-transform duration-300 ease-in-out",
+                        style: { transform: `rotate(${rotation}deg)` }
+                    }, fullBoardOrder.map((boardId, index) => { const transformClass = boardId === 'corner-go-to-jail' ? 'transform -rotate-90' : ''; return React.createElement('div', { key: boardId + '-' + index, style: getPosition(index), className: transformClass }, renderBoardCell(boardId, index)); })),
                     players && React.createElement('div', { className: "mt-4" },
                          React.createElement('h4', { className: "text-sm font-bold mb-2" }, "Patrimonio Neto"),
                          React.createElement('div', { className: "w-full bg-slate-900 h-6 rounded-md flex overflow-hidden text-xs font-bold items-center" },
@@ -769,7 +787,7 @@
                   React.createElement('div', { className: "flex flex-col space-y-2" }, 
                     React.createElement('label', { htmlFor: 'roomCodeInput', className: "block text-sm font-medium text-slate-400 mb-1 text-left" }, "entrar como invitado:"),
                     React.createElement('input', { id: 'roomCodeInput', type: "text", value: lobby.roomCode, onChange: (e) => setLobby(prev=>({...prev, roomCode: e.target.value})), placeholder: "Enter Room Code", className: "w-full p-3 rounded-md bg-slate-700 placeholder-slate-400 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500" }), 
-                    React.createElement('div', { className: "flex space-x-2" }, React.createElement('button', { onClick: () => joinRoomByCode(lobby.roomCode), disabled: !lobby.roomCode.trim(), className: "flex-grow bg-teal-600 hover:bg-teal-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition" }, "unirse a partida"), React.createElement('button', { onClick: () => setIsScannerVisible(true), className: "bg-slate-600 hover:bg-slate-500 text-white font-bold p-3 rounded-lg transition" }, "Escanear QR")))) :
+                    React.createElement('div', { className: "flex space-x-2" }, React.createElement('button', { onClick: () => joinRoomByCode(lobby.roomCode), disabled: !lobby.roomCode.trim(), className: "flex-grow bg-teal-600 hover:bg-teal-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition" }, "unirse a partida"), React.createElement('button', { onClick: () => setIsScannerVisible(true), className: "bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-lg transition" }, "Escanear QR")))) :
               React.createElement('div', { className: "bg-slate-900/50 p-4 rounded-lg" },
                   React.createElement('div', { className: "flex justify-between items-center mb-3" }, React.createElement('h3', { className: "font-bold" }, `Jugadores en Lobby (${lobby.players.length}/${MAX_PLAYERS})`), React.createElement('button', { onClick: handleLeaveRoom, className: "bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-sm" }, "Salir")),
                   React.createElement('ul', { className: "space-y-2" }, lobby.players.map(p => React.createElement('li', { key: p.id, className: "flex items-center space-x-3" }, React.createElement('span', { className: "w-4 h-4 rounded-full border-2 border-slate-400", style:{backgroundColor: p.color} }), React.createElement('span', { className: "font-semibold" }, p.name), p.id === peerId && React.createElement('span', { className: "text-xs text-slate-400" }, "(Tú)"), p.role === 'host' && React.createElement('span', { className: "text-xs text-yellow-400 font-bold" }, "(Anfitrión)")))),
@@ -1277,26 +1295,44 @@
                     }
                     
                     case 'CREATE_TRADE_OFFER': {
-                        const { fromId } = action.payload;
-                        const { toId, amount, propertiesOffered, propertiesRequested, description } = action.payload;
+                        const { fromId, toId, amount, propertiesOffered, propertiesRequested, description } = action.payload;
                         const fromPlayer = newState.players.find(p => p.id === fromId);
                         const toPlayer = toId === 'bank' ? { name: 'El Banco', id: 'bank' } : newState.players.find(p => p.id === toId);
 
                         if (!fromPlayer || !toPlayer) break;
 
-                        const newTrade = {
-                            id: `trade_${Date.now()}_${Math.random()}`,
-                            fromId,
-                            fromName: fromPlayer.name,
-                            toId,
-                            toName: toPlayer.name,
-                            amount,
-                            propertiesOffered,
-                            propertiesRequested,
-                            description,
-                        };
-                        newState.pendingTrades.push(newTrade);
-                        logMessage = `${fromPlayer.name} ha propuesto un intercambio a ${toPlayer.name}.`;
+                        if (toId === 'bank') {
+                            // This is a trade proposal for the bank, treat it as a request for the host.
+                            const newRequest = {
+                                id: `req_${Date.now()}_${Math.random()}`,
+                                requestType: 'TRADE_REQUEST',
+                                fromId,
+                                fromName: fromPlayer.name,
+                                toId,
+                                amount,
+                                propertiesOffered,
+                                propertiesRequested,
+                                description,
+                            };
+                            newState.pendingRequests.unshift(newRequest);
+                            logMessage = `${fromPlayer.name} ha propuesto un intercambio al Banco.`;
+                        } else {
+                            // This is a regular player-to-player trade.
+                            const newTrade = {
+                                id: `trade_${Date.now()}_${Math.random()}`,
+                                fromId,
+                                fromName: fromPlayer.name,
+                                toId,
+                                toName: toPlayer.name,
+                                amount,
+                                propertiesOffered,
+                                propertiesRequested,
+                                description,
+                            };
+                            newState.pendingTrades.push(newTrade);
+                            logMessage = `${fromPlayer.name} ha propuesto un intercambio a ${toPlayer.name}.`;
+                        }
+                        
                         newState.activityLog.unshift(logMessage);
                         break;
                     }
@@ -1419,6 +1455,41 @@
                         const { requestType } = request;
 
                         switch(requestType) {
+                            case 'TRADE_REQUEST': {
+                                const { fromId, toId, amount, propertiesOffered, propertiesRequested } = request;
+                                if (toId !== 'bank') { logMessage = `Solicitud de intercambio inválida.`; break; }
+
+                                let isValid = true;
+                                let failureReason = '';
+
+                                if (amount > 0 && fromPlayer.money < amount) { isValid = false; failureReason = `fondos insuficientes de ${fromPlayer.name}.`; }
+
+                                if (isValid) {
+                                    const fromPlayerOwnsProps = propertiesOffered.every(propId => {
+                                        const prop = newState.properties.find(p => p.id === propId);
+                                        return prop?.ownerId === fromPlayer.id && !prop.isMortgaged;
+                                    });
+                                    if (!fromPlayerOwnsProps) { isValid = false; failureReason = `${fromPlayer.name} ya no es dueño de una de las propiedades ofrecidas o está congelada.`; }
+                                }
+                                
+                                if (isValid) {
+                                    const bankOwnsProps = propertiesRequested.every(propId => {
+                                        const prop = newState.properties.find(p => p.id === propId);
+                                        return !prop?.ownerId && !prop.isMortgaged;
+                                    });
+                                    if (!bankOwnsProps) { isValid = false; failureReason = `una de las propiedades solicitadas ya no está disponible en el Banco.`; }
+                                }
+
+                                if (isValid) {
+                                    newState.players[fromPlayerIdx].money -= amount;
+                                    propertiesOffered.forEach(propId => { const pIdx = newState.properties.findIndex(p => p.id === propId); if (pIdx !== -1) newState.properties[pIdx].ownerId = null; });
+                                    propertiesRequested.forEach(propId => { const pIdx = newState.properties.findIndex(p => p.id === propId); if (pIdx !== -1) newState.properties[pIdx].ownerId = fromId; });
+                                    logMessage = `Intercambio con el Banco aprobado para ${fromPlayer.name}.`;
+                                } else {
+                                    logMessage = `El intercambio de ${fromPlayer.name} con el Banco falló: ${failureReason}`;
+                                }
+                                break;
+                            }
                             case 'BUILD_HOUSE': {
                                 const { propertyId } = request;
                                 const propIdx = newState.properties.findIndex(p => p.id === propertyId);
@@ -1770,7 +1841,7 @@
                     
                     const newPendingRequests = gs.pendingRequests.map(req => { let updatedReq = { ...req }; if (req.fromId === oldHostId) updatedReq.fromId = peerId; if (req.toId === oldHostId) updatedReq.toId = peerId; return updatedReq; });
                     const newPendingOffers = (gs.pendingOffers || []).map(o => { let updatedOffer = { ...o }; if (o.fromId === oldHostId) updatedOffer.fromId = peerId; if (o.toId === oldHostId) updatedOffer.toId = peerId; return updatedOffer; });
-                    const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldHostId) updatedTrade.fromId = peerId; if (t.toId === oldHostId) updatedTrade.toId = peerId; return updatedTrade; });
+                    const newPendingTrades = (gs.pendingTrades || []).map(t => { let updatedTrade = { ...t }; if (t.fromId === oldHostId) updatedTrade.fromId = peerId; if (t.toId === oldHostId) updatedTrade.toId = conn.peer; return updatedTrade; });
                     
                     const updatedGameState = { ...gs, players: newPlayers, properties: newProperties, pendingRequests: newPendingRequests, pendingOffers: newPendingOffers, pendingTrades: newPendingTrades };
 
